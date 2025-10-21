@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+
 
 export default function RegisterForm({ role, setRole }) {
   const [formData, setFormData] = useState({
@@ -16,6 +18,9 @@ export default function RegisterForm({ role, setRole }) {
   const [countries, setCountries] = useState([]);
   const [cities, setCities] = useState([]);
   const [loadingCities, setLoadingCities] = useState(false);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
 
   // ✅ Fetch countries on mount
   useEffect(() => {
@@ -60,13 +65,45 @@ export default function RegisterForm({ role, setRole }) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("User registered:", { role, ...formData });
+    setError(null); 
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to register.");
+      }
+
+      alert("Registration successful! Please log in.");
+      navigate("/login");
+
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      {error && (
+        <div className="bg-red-500/20 border border-red-500 text-red-300 p-3 rounded-lg text-center">
+          {error}
+        </div>
+      )}
       {/* Common Fields */}
       {["name", "email", "password", "confirmPassword"].map((field) => (
         <input

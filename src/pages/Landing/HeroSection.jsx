@@ -1,7 +1,7 @@
 // src/components/landing/HeroSection.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import herobg from "../../assets/Hero-bg-1.jpg";
+import herobg from "../../assets/hero-bg-1.jpg";
 
 export default function HeroSection() {
   const navigate = useNavigate();

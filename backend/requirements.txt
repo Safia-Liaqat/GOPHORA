@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+SQLAlchemy
+psycopg2-binary
+pydantic
+passlib
+argon2-cffi
+python-jose[cryptography]
+python-dotenv
