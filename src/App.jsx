@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import ProtectedRoute from './components/common/ProtectedRoute'
 import './App.css'
 import './index.css'
 import Register from './pages/Auth/Register'
@@ -18,19 +18,24 @@ import SeekerProfile from './pages/Seeker/Profile'
 import TestChat from './pages/Testchat'
 import PageNotFound from './pages/PageNotFound'
 
+// Other imports remain the same...
+
 function App() {
   return (
-    <>
-      <div className="">
-        <Routes>
-           {/* Public */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-        
+    <Routes>
+      {/* Public */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
 
-        {/* Provider Routes */}
-      <Route element={<ProviderLayout />}>
+      {/* Provider Routes */}
+      <Route
+        element={
+          <ProtectedRoute allowedRole="provider">
+            <ProviderLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route path="/provider/dashboard" element={<ProviderDashboard />} />
         <Route path="/provider/opportunities" element={<Opportunities />} />
         <Route path="/provider/create-opportunity" element={<CreateOpportunity />} />
@@ -38,22 +43,24 @@ function App() {
       </Route>
 
       {/* Seeker Routes */}
-      <Route element={<SeekerLayout />}>
-        <Route path="/seeker/dashboard" element={<SeekerDashboard />} /> 
+      <Route
+        element={
+          <ProtectedRoute allowedRole="seeker">
+            <SeekerLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/seeker/dashboard" element={<SeekerDashboard />} />
         <Route path="/seeker/opportunities" element={<SeekerOpportunities />} />
         <Route path="/seeker/applications" element={<Applications />} />
-        <Route path="/seeker/profile" element={<SeekerProfile/>} />
+        <Route path="/seeker/profile" element={<SeekerProfile />} />
       </Route>
 
-
-         <Route path="/chat" element={<TestChat />} />
-         
-         <Route path="*" element={<PageNotFound />} /> 
-
-      </Routes>
-      </div>
-    </>
-  )
+      {/* Other routes */}
+      <Route path="/chat" element={<TestChat />} />
+      <Route path="*" element={<PageNotFound />} />
+    </Routes>
+  );
 }
 
-export default App
+export default App;

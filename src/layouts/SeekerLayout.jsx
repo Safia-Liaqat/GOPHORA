@@ -1,7 +1,16 @@
 import React from "react";
-import { Link, Outlet } from "react-router-dom";
+import { Link, Outlet, useNavigate } from "react-router-dom";
+import { LogOut } from "lucide-react";
 
 export default function SeekerLayout() {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    navigate("/login");
+  };
+
   return (
     <div className="flex min-h-screen bg-gradient-to-b from-[#0a0118] via-[#120826] to-[#1a093f] text-white">
       {/* Sidebar */}
@@ -11,6 +20,7 @@ export default function SeekerLayout() {
             Gophora
           </h1>
 
+          {/* Navigation Links */}
           <nav className="flex flex-col gap-3">
             <Link
               to="/seeker/dashboard"
@@ -39,8 +49,18 @@ export default function SeekerLayout() {
           </nav>
         </div>
 
-        <div className="mt-8 text-xs text-gray-500 text-center">
-          © {new Date().getFullYear()} Gophora
+        {/* Logout Button and Footer */}
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={handleLogout}
+            className="flex items-center justify-center gap-2 w-full py-2 rounded-xl text-white bg-orange-500 hover:bg-orange-600 transition-all duration-200 font-medium"
+          >
+            <LogOut size={18} />
+            Logout
+          </button>
+          <div className="mt-2 text-xs text-gray-500 text-center">
+            © {new Date().getFullYear()} Gophora
+          </div>
         </div>
       </aside>
 

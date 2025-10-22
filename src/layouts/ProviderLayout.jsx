@@ -1,9 +1,10 @@
 import React from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
-import { Briefcase, LayoutDashboard, PlusCircle, User } from "lucide-react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Briefcase, LayoutDashboard, PlusCircle, User, LogOut } from "lucide-react";
 
 export default function ProviderLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const navLinks = [
     { path: "/provider/dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
@@ -11,6 +12,12 @@ export default function ProviderLayout() {
     { path: "/provider/create-opportunity", label: "Post Opportunity", icon: <PlusCircle size={18} /> },
     { path: "/provider/profile", label: "Profile", icon: <User size={18} /> },
   ];
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    navigate("/login");
+  };
 
   return (
     <div className="flex min-h-screen bg-gradient-to-b from-[#0a0118] via-[#120826] to-[#1a093f] text-white">
@@ -31,10 +38,9 @@ export default function ProviderLayout() {
                   key={path}
                   to={path}
                   className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
-                    ${
-                      active
-                        ? "bg-white/20 text-[#C5A3FF] shadow-[0_0_15px_rgba(197,163,255,0.5)]"
-                        : "text-gray-300 hover:bg-white/10 hover:text-[#C5A3FF]"
+                    ${active
+                      ? "bg-white/20 text-[#C5A3FF] shadow-[0_0_15px_rgba(197,163,255,0.5)]"
+                      : "text-gray-300 hover:bg-white/10 hover:text-[#C5A3FF]"
                     }`}
                 >
                   {icon}
@@ -45,9 +51,17 @@ export default function ProviderLayout() {
           </nav>
         </div>
 
-        {/* Footer */}
-        <div className="mt-6 text-xs text-gray-500 text-center">
-          © {new Date().getFullYear()} Gophora
+        {/* Footer with Logout */}
+        <div className="mt-6 flex flex-col gap-2">
+          <button
+            onClick={handleLogout}
+            className="flex items-center justify-center gap-2 w-full py-2 rounded-xl text-white bg-orange-500 hover:bg-orange-600 transition-all duration-200"
+          >
+            <LogOut size={16} /> Logout
+          </button>
+          <div className="mt-2 text-xs text-gray-500 text-center">
+            © {new Date().getFullYear()} Gophora
+          </div>
         </div>
       </aside>
 
