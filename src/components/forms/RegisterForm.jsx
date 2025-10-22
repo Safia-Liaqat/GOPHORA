@@ -81,6 +81,13 @@ export default function RegisterForm({ role, setRole }) {
         body: JSON.stringify({
           email: formData.email,
           password: formData.password,
+          full_name: formData.name,
+          role: role,
+          country: formData.country,
+          city: formData.city,
+          skills: formData.skills,
+          organizationName: formData.organizationName,
+          website: formData.website,
         }),
       });
 

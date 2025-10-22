@@ -1,22 +1,64 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 export default function Profile() {
-  // Mock provider data
   const [profile, setProfile] = useState({
-    name: "John Doe",
-    email: "john@example.com",
-    organization: "Tech Corp",
-    website: "https://techcorp.com",
-    location: "Karachi, Pakistan",
+    name: "",
+    email: "",
+    organization: "",
+    website: "",
+    location: "",
   });
 
   const [editMode, setEditMode] = useState(false);
+
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        // Handle not logged in
+        return;
+      }
+
+      try {
+        const [userRes, profileRes] = await Promise.all([
+          fetch("/api/users/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch("/api/profiles/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+
+        if (!userRes.ok || !profileRes.ok) {
+          throw new Error("Failed to fetch profile data");
+        }
+
+        const userData = await userRes.json();
+        const profileData = await profileRes.json();
+
+        setProfile({
+          name: userData.full_name || "",
+          email: userData.email || "",
+          organization: profileData.company_name || "",
+          website: profileData.company_website || "",
+          location: [profileData.city, profileData.country]
+            .filter(Boolean)
+            .join(", "),
+        });
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+      }
+    };
+
+    fetchProfileData();
+  }, []);
 
   const handleChange = (e) => {
     setProfile({ ...profile, [e.target.name]: e.target.value });
   };
 
   const handleSave = () => {
+    // Here you would send the updated data to the backend
     setEditMode(false);
     alert("Profile updated successfully!");
   };
@@ -46,8 +88,8 @@ export default function Profile() {
           name="email"
           value={profile.email}
           onChange={handleChange}
-          disabled={!editMode}
-          className="w-full border border-white/20 p-3 rounded-xl bg-white/5 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#C5A3FF] transition-all duration-200"
+          disabled
+          className="w-full border border-white/20 p-3 rounded-xl bg-white/5 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#C5A3FF] transition-all duration-200 opacity-70 cursor-not-allowed"
         />
 
         {/* Organization */}

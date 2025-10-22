@@ -1,19 +1,62 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 export default function Profile() {
   const [profile, setProfile] = useState({
-    name: "Jane Doe",
-    email: "jane@example.com",
-    skills: "React, Python",
-    location: "Lahore, Pakistan",
+    name: "",
+    email: "",
+    skills: "",
+    location: "",
   });
 
   const [editMode, setEditMode] = useState(false);
+
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        // Handle not logged in, maybe redirect to login
+        return;
+      }
+
+      try {
+        const [userRes, profileRes] = await Promise.all([
+          fetch("/api/users/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch("/api/profiles/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+
+        if (!userRes.ok || !profileRes.ok) {
+          throw new Error("Failed to fetch profile data");
+        }
+
+        const userData = await userRes.json();
+        const profileData = await profileRes.json();
+
+        setProfile({
+          name: userData.full_name || "",
+          email: userData.email || "",
+          skills: (profileData.skills || []).join(", "),
+          location: [profileData.city, profileData.country]
+            .filter(Boolean)
+            .join(", "),
+        });
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+        // Handle error, maybe show a notification to the user
+      }
+    };
+
+    fetchProfileData();
+  }, []);
 
   const handleChange = (e) =>
     setProfile({ ...profile, [e.target.name]: e.target.value });
 
   const handleSave = () => {
+    // Here you would typically send the updated profile data to the backend
     setEditMode(false);
     alert("Profile updated successfully!");
   };
@@ -55,10 +98,8 @@ export default function Profile() {
               name="email"
               value={profile.email}
               onChange={handleChange}
-              disabled={!editMode}
-              className={`w-full p-3 rounded-xl border border-[#2A2F55] bg-[#0E1224] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#9E7BFF] transition-all duration-200 ${
-                !editMode ? "opacity-70 cursor-not-allowed" : ""
-              }`}
+              disabled
+              className={`w-full p-3 rounded-xl border border-[#2A2F55] bg-[#0E1224] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#9E7BFF] transition-all duration-200 opacity-70 cursor-not-allowed`}
             />
           </div>
 

@@ -6,41 +6,68 @@ export default function Opportunities() {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
   const [appliedIds, setAppliedIds] = useState([]);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const mockData = [
-      { id: 1, title: "Frontend Developer", type: "job", location: "Karachi", tags: "React, Tailwind" },
-      { id: 2, title: "AI Internship", type: "internship", location: "Remote", tags: "Python, ML" },
-      { id: 3, title: "Hackathon Challenge", type: "hackathon", location: "Lahore", tags: "AI, ML" },
-      { id: 4, title: "Backend Developer", type: "job", location: "Islamabad", tags: "Node, Express" },
-    ];
-    setOpportunities(mockData);
+    const fetchOpportunities = async () => {
+      try {
+        const response = await fetch("/api/opportunities");
+        if (!response.ok) throw new Error("Failed to fetch opportunities");
+        const data = await response.json();
+        setOpportunities(data);
+      } catch (err) {
+        setError(err.message);
+      }
+    };
+    fetchOpportunities();
   }, []);
 
-  const handleApply = (id) => {
-    if (!appliedIds.includes(id)) setAppliedIds([...appliedIds, id]);
+  const handleApply = async (id) => {
+    // Prevent duplicate apply locally
+    if (appliedIds.includes(id)) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("You must be logged in to apply.");
+
+      // Call backend to create the application. Backend expects opportunity_id as a query param.
+      const res = await fetch(`/api/applications/apply?opportunity_id=${id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || "Failed to apply to opportunity");
+      }
+
+      // On success add to appliedIds so button shows "Applied"
+      setAppliedIds((prev) => [...prev, id]);
+      // increment a local delta so dashboard can reflect the new application immediately
+      try {
+        const key = "applicationsSentDelta";
+        const current = parseInt(localStorage.getItem(key) || "0", 10);
+        localStorage.setItem(key, String(current + 1));
+      } catch (e) {
+        // ignore storage errors
+      }
+    } catch (err) {
+      setError(err.message || "Failed to apply");
+    }
   };
 
-  // Locations available based on selected category
-  const availableLocations =
-    selectedCategory === ""
-      ? []
-      : [
-          ...new Set(
-            opportunities
-              .filter((op) => op.type === selectedCategory)
-              .map((op) => op.location)
-          ),
-        ];
+  const availableLocations = [
+    ...new Set(opportunities.map((op) => op.location).filter(Boolean)),
+  ];
 
-  // Filter opportunities after both category and location are selected
-  const filteredOpportunities =
-    selectedCategory && selectedLocation
-      ? opportunities.filter(
-          (op) =>
-            op.type === selectedCategory && op.location === selectedLocation
-        )
-      : [];
+  const filteredOpportunities = opportunities.filter((op) => {
+    const matchesCategory = selectedCategory ? op.type === selectedCategory : true;
+    const matchesLocation = selectedLocation ? op.location === selectedLocation : true;
+    return matchesCategory && matchesLocation;
+  });
 
   const clearFilters = () => {
     setSelectedCategory("");
@@ -53,6 +80,8 @@ export default function Opportunities() {
         Browse Opportunities
       </h2>
 
+      {error && <p className="text-red-500 bg-red-500/10 p-3 rounded-lg mb-4">{error}</p>}
+
       {/* Filters */}
       <div className="flex flex-col md:flex-row gap-4 mb-8 max-w-3xl">
         {/* Category */}
@@ -61,13 +90,10 @@ export default function Opportunities() {
           <div className="relative">
             <select
               value={selectedCategory}
-              onChange={(e) => {
-                setSelectedCategory(e.target.value);
-                setSelectedLocation("");
-              }}
+              onChange={(e) => setSelectedCategory(e.target.value)}
               className="border border-white/20 p-3 pr-10 rounded-xl w-full bg-[#161B30] text-white appearance-none focus:outline-none focus:ring-2 focus:ring-[#C5A3FF] transition-all duration-200"
             >
-              <option value="">-- Select Category --</option>
+              <option value="">All Categories</option>
               <option value="job">Job</option>
               <option value="internship">Internship</option>
               <option value="hackathon">Hackathon</option>
@@ -89,12 +115,12 @@ export default function Opportunities() {
             <select
               value={selectedLocation}
               onChange={(e) => setSelectedLocation(e.target.value)}
-              disabled={availableLocations.length === 0}
+              disabled={opportunities.length === 0}
               className={`border border-white/20 p-3 pr-10 rounded-xl w-full bg-[#161B30] text-white appearance-none focus:outline-none focus:ring-2 focus:ring-[#C5A3FF] transition-all duration-200 ${
-                availableLocations.length === 0 ? "opacity-60 cursor-not-allowed" : ""
+                opportunities.length === 0 ? "opacity-60 cursor-not-allowed" : ""
               }`}
             >
-              <option value="">-- Select Location --</option>
+              <option value="">All Locations</option>
               {availableLocations.map((loc) => (
                 <option key={loc} value={loc} className="bg-[#161B30] text-white">
                   {loc}
@@ -120,8 +146,8 @@ export default function Opportunities() {
       </div>
 
       {/* No Results */}
-      {selectedCategory && selectedLocation && filteredOpportunities.length === 0 && (
-        <p className="text-gray-400">No opportunities found for this category/location.</p>
+      {filteredOpportunities.length === 0 && (
+        <p className="text-gray-400 p-4 text-center">No opportunities found for the selected filters.</p>
       )}
 
       {/* Opportunities Table */}
@@ -146,7 +172,7 @@ export default function Opportunities() {
                   <td className="py-3 px-4">{op.title}</td>
                   <td className="py-3 px-4 capitalize">{op.type}</td>
                   <td className="py-3 px-4">{op.location}</td>
-                  <td className="py-3 px-4">{op.tags}</td>
+                  <td className="py-3 px-4">{(op.tags || []).join(", ")}</td>
                   <td className="py-3 px-4">
                     <button
                       onClick={() => handleApply(op.id)}

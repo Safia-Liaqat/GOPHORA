@@ -7,54 +7,74 @@ export default function Opportunities() {
   const [editingOp, setEditingOp] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("all");
+  const [error, setError] = useState("");
 
-  // 🧩 Mock data
-  useEffect(() => {
-    const mockData = [
-      {
-        id: 1,
-        title: "Frontend Developer",
-        type: "job",
-        location: "Karachi, Pakistan",
-        tags: "React, Tailwind",
-      },
-      {
-        id: 2,
-        title: "AI Internship",
-        type: "internship",
-        location: "Remote",
-        tags: "Python, ML",
-      },
-      {
-        id: 3,
-        title: "Hackathon Challenge",
-        type: "hackathon",
-        location: "Lahore, Pakistan",
-        tags: "AI, ML",
-      },
-    ];
-    setOpportunities(mockData);
-  }, []);
-
-  // ✏️ Edit, Delete, Update handlers
-  const handleEdit = (op) => setEditingOp(op);
-  const handleDelete = (id) => {
-    if (window.confirm("Are you sure you want to delete this opportunity?")) {
-      setOpportunities(opportunities.filter((op) => op.id !== id));
+  const fetchOpportunities = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch("/api/opportunities/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Failed to fetch opportunities");
+      const data = await response.json();
+      setOpportunities(data);
+    } catch (err) {
+      setError(err.message);
     }
   };
-  const handleUpdate = (updatedOp) => {
-    setOpportunities(
-      opportunities.map((op) => (op.id === updatedOp.id ? updatedOp : op))
-    );
-    setEditingOp(null);
+
+  useEffect(() => {
+    fetchOpportunities();
+  }, []);
+
+  const handleEdit = (op) => setEditingOp(op);
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this opportunity?")) {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(`/api/opportunities/${id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) throw new Error("Failed to delete opportunity");
+        setOpportunities(opportunities.filter((op) => op.id !== id));
+      } catch (err) {
+        setError(err.message);
+      }
+    }
   };
 
-  // 🔍 Filter + Search
+  const handleUpdate = async (updatedOp) => {
+    try {
+      const token = localStorage.getItem("token");
+      
+      const processedData = {
+        ...updatedOp,
+        tags: updatedOp.tags ? updatedOp.tags.split(",").map(tag => tag.trim()) : [],
+      };
+
+      const response = await fetch(`/api/opportunities/${updatedOp.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(processedData),
+      });
+      if (!response.ok) throw new Error("Failed to update opportunity");
+      const data = await response.json();
+      setOpportunities(opportunities.map((op) => (op.id === data.id ? data : op)));
+      setEditingOp(null);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const filteredOpportunities = opportunities.filter((op) => {
     const matchesSearch =
-      op.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      op.tags.toLowerCase().includes(searchQuery.toLowerCase());
+      (op.title?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+      (op.tags?.join(", ") || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = filterType === "all" || op.type === filterType;
     return matchesSearch && matchesFilter;
   });
@@ -64,6 +84,8 @@ export default function Opportunities() {
       <h2 className="text-3xl font-semibold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-[#C5A3FF] to-[#9E7BFF] drop-shadow-[0_0_10px_rgba(158,123,255,0.6)]">
         My Opportunities
       </h2>
+
+      {error && <p className="text-red-500 bg-red-500/10 p-3 rounded-lg mb-4">{error}</p>}
 
       {/* 🔍 Search + Filter Section */}
       <div className="flex flex-col md:flex-row gap-4 mb-8 relative">
@@ -128,7 +150,7 @@ export default function Opportunities() {
               <tr>
                 <th className="p-4 font-semibold">Title</th>
                 <th className="p-4 font-semibold">Type</th>
-                <th className="p-4 font-semibold">Location</th>
+                <th className="p-4 font-semibold">Status</th>
                 <th className="p-4 font-semibold">Tags</th>
                 <th className="p-4 font-semibold text-center">Actions</th>
               </tr>
@@ -141,8 +163,8 @@ export default function Opportunities() {
                 >
                   <td className="p-4">{op.title}</td>
                   <td className="p-4 capitalize text-gray-300">{op.type}</td>
-                  <td className="p-4 text-gray-300">{op.location}</td>
-                  <td className="p-4 text-gray-300">{op.tags}</td>
+                  <td className="p-4 capitalize text-gray-300">{op.status}</td>
+                  <td className="p-4 text-gray-300">{(op.tags || []).join(", ")}</td>
                   <td className="p-4 flex justify-center gap-3">
                     <button
                       onClick={() => handleEdit(op)}

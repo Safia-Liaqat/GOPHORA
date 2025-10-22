@@ -25,6 +25,17 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str
 
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    full_name: Optional[str] = None
+    role: str
+    country: Optional[str] = None
+    city: Optional[str] = None
+    skills: Optional[str] = None
+    organizationName: Optional[str] = None
+    website: Optional[str] = None
+
 # A schema used for reading/returning user data from the API.
 # It includes attributes that are safe to expose publicly (no password).
 class User(UserBase):
@@ -34,7 +45,7 @@ class User(UserBase):
 
     class Config:
         # This allows the Pydantic model to read data from ORM models (like SQLAlchemy).
-        orm_mode = True
+        from_attributes = True
 
 # Schema for the response when a user successfully logs in.
 class Token(BaseModel):
@@ -45,23 +56,83 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     email: str | None = None
 
-# Safia: Create Pydantic schemas for Profile model:
-# ProfileBase: avatar_url: Optional[str], bio: Optional[str], skills: Optional[List[str]],
-#              interests: Optional[List[str]], company_name: Optional[str], company_website: Optional[str]
-# ProfileCreate: Inherits from ProfileBase, user_id: int
-# Profile: Inherits from ProfileBase, id: int, user_id: int
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+    role: str
 
-# Safia: Create Pydantic schemas for Opportunity model:
-# OpportunityBase: title: str, description: str, type: Optional[str], tags: Optional[List[str]], status: Optional[str]
-# OpportunityCreate: Inherits from OpportunityBase, provider_id: int
-# Opportunity: Inherits from OpportunityBase, id: int, provider_id: int, created_at: datetime, updated_at: datetime
+class ProfileBase(BaseModel):
+    avatar_url: Optional[str] = None
+    bio: Optional[str] = None
+    skills: Optional[List[str]] = None
+    interests: Optional[List[str]] = None
+    company_name: Optional[str] = None
+    company_website: Optional[str] = None
+    country: Optional[str] = None
+    city: Optional[str] = None
 
-# Safia: Create Pydantic schemas for Application model:
-# ApplicationBase: status: Optional[str], cover_letter: Optional[str]
-# ApplicationCreate: Inherits from ApplicationBase, seeker_id: int, opportunity_id: int
-# Application: Inherits from ApplicationBase, id: int, seeker_id: int, opportunity_id: int, submitted_at: datetime
+class ProfileCreate(ProfileBase):
+    user_id: int
 
-# Safia: Create Pydantic schemas for Subscription model:
-# SubscriptionBase: plan_name: str, status: str, start_date: Optional[datetime], end_date: Optional[datetime]
-# SubscriptionCreate: Inherits from SubscriptionBase, user_id: int
-# Subscription: Inherits from SubscriptionBase, id: int, user_id: int
+class Profile(ProfileBase):
+    id: int
+    user_id: int
+
+    class Config:
+        from_attributes = True
+
+class OpportunityBase(BaseModel):
+    title: str
+    description: str
+    type: Optional[str] = None
+    location: Optional[str] = None
+    tags: Optional[List[str]] = None
+    status: Optional[str] = "open"
+
+class OpportunityCreate(OpportunityBase):
+    provider_id: int
+
+class Opportunity(OpportunityBase):
+    id: int
+    provider_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ApplicationBase(BaseModel):
+    status: Optional[str] = "pending"
+    cover_letter: Optional[str] = None
+
+class ApplicationCreate(ApplicationBase):
+    seeker_id: int
+    opportunity_id: int
+
+class Application(ApplicationBase):
+    id: int
+    seeker_id: int
+    opportunity_id: int
+    submitted_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ApplicationWithOpportunity(Application):
+    opportunity: Opportunity
+
+class SubscriptionBase(BaseModel):
+    plan_name: str
+    status: str
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+
+class SubscriptionCreate(SubscriptionBase):
+    user_id: int
+
+class Subscription(SubscriptionBase):
+    id: int
+    user_id: int
+
+    class Config:
+        from_attributes = True

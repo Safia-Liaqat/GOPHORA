@@ -85,3 +85,20 @@ Your application will be running and accessible at **http://localhost:5173**.
 
 - **View backend logs:** `docker-compose logs -f backend`
 - **Stop all services:** `docker-compose down`
+
+### Restarting Docker & clearing the database volume
+
+If you need to fully restart the backend and reset the Postgres data volume (for example when the DB schema changed or you want a clean DB), run the following from the project root:
+
+```bash
+docker compose down
+docker volume rm gophora_postgres_data
+docker compose up --build
+```
+
+What this does:
+- `docker compose down` stops and removes the containers and networks.
+- `docker volume rm gophora_postgres_data` removes the named Docker volume that stores Postgres data so the database will start fresh.
+- `docker compose up --build` rebuilds images and starts the services again.
+
+Run the three commands above before starting the frontend (`npm run dev`) if you want the backend to be restarted with a fresh database.
