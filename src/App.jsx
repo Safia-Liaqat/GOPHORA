@@ -17,6 +17,7 @@ import Applications from './pages/Seeker/Applications'
 import SeekerProfile from './pages/Seeker/Profile'
 import TestChat from './pages/Testchat'
 import PageNotFound from './pages/PageNotFound'
+import VerificationForm from './components/forms/VerificationForm'
 
 // Other imports remain the same...
 
@@ -37,6 +38,7 @@ function App() {
         }
       >
         <Route path="/provider/dashboard" element={<ProviderDashboard />} />
+        <Route path="/provider/verify" element={<VerificationForm/>} />
         <Route path="/provider/opportunities" element={<Opportunities />} />
         <Route path="/provider/create-opportunity" element={<CreateOpportunity />} />
         <Route path="/provider/profile" element={<Profile />} />
