@@ -12,6 +12,7 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, func
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import ARRAY
 from .database import Base
+from pgvector.sqlalchemy import Vector
 
 # Represents the 'users' table in the database.
 # SQLAlchemy's ORM maps this class to the table, and its attributes to the columns.
@@ -62,6 +63,7 @@ class Opportunity(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     provider = relationship("User", back_populates="opportunities")
     applications = relationship("Application", back_populates="opportunity")
+    embedding = Column(Vector(768), nullable=True)
 
 class Application(Base):
     __tablename__ = "applications"

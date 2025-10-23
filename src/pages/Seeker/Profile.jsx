@@ -56,9 +56,56 @@ export default function Profile() {
     setProfile({ ...profile, [e.target.name]: e.target.value });
 
   const handleSave = () => {
-    // Here you would typically send the updated profile data to the backend
-    setEditMode(false);
-    alert("Profile updated successfully!");
+    // Send the updated profile data to the backend
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("You must be logged in to save your profile.");
+      return;
+    }
+
+    // Build payload: convert skills string to array and split location into city/country
+    const skillsArr = (profile.skills || "").split(",").map((s) => s.trim()).filter(Boolean);
+    const locParts = (profile.location || "").split(",").map((p) => p.trim()).filter(Boolean);
+    const city = locParts[0] || null;
+    const country = locParts[1] || null;
+
+    const payload = {
+      skills: skillsArr,
+    };
+    if (city) payload.city = city;
+    if (country) payload.country = country;
+
+    fetch("/api/profiles/me", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || "Failed to update profile");
+        }
+        return res.json();
+      })
+      .then((updatedProfile) => {
+        setProfile((prev) => ({
+          ...prev,
+          skills: (updatedProfile.skills || []).join(", "),
+          location: [updatedProfile.city, updatedProfile.country].filter(Boolean).join(", "),
+        }));
+        setEditMode(false);
+        alert("Profile updated successfully!");
+
+        // Optional: pre-warm recommendations so next view shows updated data immediately
+        fetch('/api/opportunities/recommend', { headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+      })
+      .catch((err) => {
+        console.error("Error updating profile:", err);
+        alert("Failed to update profile. See console for details.");
+      });
   };
 
   return (

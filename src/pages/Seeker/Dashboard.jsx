@@ -5,7 +5,7 @@ export default function SeekerDashboard() {
   const [stats, setStats] = useState({
     recommended: 0,
     applicationsSent: 0,
-    newMatches: 2, // Placeholder for now
+    newMatches: 0,
   });
   const [error, setError] = useState("");
 
@@ -32,11 +32,41 @@ export default function SeekerDashboard() {
             if (delta > 0) localStorage.removeItem("applicationsSentDelta");
         }
 
+        // Try to get personalized recommendations first (if token exists).
+        const localToken = localStorage.getItem("token");
+        if (localToken) {
+          try {
+            const recRes = await fetch('/api/opportunities/recommend', { headers: { Authorization: `Bearer ${localToken}` } });
+            if (recRes.ok) {
+              const recs = await recRes.json();
+              const recommendedCount = Array.isArray(recs) ? recs.length : 0;
+              
+              const lastVisited = localStorage.getItem('lastVisitedSeekerDashboard');
+              const newMatchesCount = lastVisited
+                ? recs.filter(opp => new Date(opp.createdAt) > new Date(lastVisited)).length
+                : recommendedCount;
+
+              setStats(prev => ({
+                ...prev,
+                recommended: recommendedCount,
+                newMatches: newMatchesCount,
+              }));
+              
+              // we already have personal recs, no need to use the public list as primary
+              return;
+            }
+          } catch (err) {
+            console.debug('Personalized recommendations failed, falling back to public opportunities', err);
+            // fallthrough to public list
+          }
+        }
+
         if (oppsRes.ok) {
           const opportunities = await oppsRes.json();
           setStats(prevStats => ({
             ...prevStats,
             recommended: opportunities.length,
+            newMatches: opportunities.length,
           }));
         }
 
@@ -46,6 +76,10 @@ export default function SeekerDashboard() {
     };
 
     fetchDashboardData();
+
+    return () => {
+      localStorage.setItem('lastVisitedSeekerDashboard', new Date().toISOString());
+    };
   }, []);
 
   return (

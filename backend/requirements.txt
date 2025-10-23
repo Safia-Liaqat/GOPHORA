@@ -7,3 +7,5 @@ passlib
 argon2-cffi
 python-jose[cryptography]
 python-dotenv
+google-generativeai
+pgvector

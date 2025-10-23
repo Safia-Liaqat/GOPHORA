@@ -1,6 +1,8 @@
 import React, { useState } from "react";
-import ChatMessage from "./ChatMessage";
-import ChatInput from "./ChatInput";
+// --- FIX: Added .jsx extensions to resolve potential import errors ---
+import ChatMessage from "./ChatMessage.jsx";
+import ChatInput from "./ChatInput.jsx";
+import axios from "axios"; 
 
 export default function ChatAgent() {
   const [messages, setMessages] = useState([
@@ -9,32 +11,42 @@ export default function ChatAgent() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Mock AI responses based on keywords
-  const getMockAIResponse = (userInput) => {
-    const text = userInput.toLowerCase();
-    if (text.includes("ai")) {
-      return "Here are some AI opportunities for you!";
-    } else if (text.includes("design")) {
-      return "Check out these design-focused opportunities!";
-    } else {
-      return "Interesting! Let me suggest some opportunities you might like.";
-    }
-  };
-
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
 
     const newMessages = [...messages, { sender: "user", text: input }];
     setMessages(newMessages);
+    const userMessage = input; 
     setInput("");
     setLoading(true);
 
-    // Simulate AI typing delay
-    setTimeout(() => {
-      const aiReply = getMockAIResponse(input);
-      setMessages([...newMessages, { sender: "ai", text: aiReply }]);
+    try {
+      const response = await axios.post("/api/chat", {
+        message: userMessage,
+      });
+
+      // --- FIX: This is the core logic update ---
+      // 1. Get the entire response from the API
+      //    (This object is { reply: "...", opportunities: [...] })
+      const aiResponse = response.data;
+
+      // 2. Create a new message object that includes the text AND the opportunities
+      const newAiMessage = {
+        sender: "ai",
+        text: aiResponse.reply,
+        opportunities: aiResponse.opportunities // <-- This array holds the "boxes"
+      };
+
+      // 3. Add the complete message object to state
+      setMessages([...newMessages, newAiMessage]);
+      // --- END OF FIX ---
+
+    } catch (error) {
+      console.error("Error fetching AI response:", error);
+      setMessages([...newMessages, { sender: "ai", text: "Sorry, I'm having trouble connecting. Please try again later." }]);
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -46,9 +58,16 @@ export default function ChatAgent() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        
+        {/* --- FIX: Use the spread operator (...) ---
+            This passes all properties (sender, text, AND opportunities)
+            from the 'msg' object directly into ChatMessage as props.
+        */}
         {messages.map((msg, idx) => (
-          <ChatMessage key={idx} sender={msg.sender} text={msg.text} />
+          <ChatMessage key={idx} {...msg} />
         ))}
+        {/* --- END OF FIX --- */}
+        
         {loading && (
           <p className="text-gray-400 text-sm italic">GOPHORA AI is typing...</p>
         )}
@@ -64,3 +83,4 @@ export default function ChatAgent() {
     </div>
   );
 }
+

@@ -81,25 +81,31 @@ class Profile(ProfileBase):
     class Config:
         from_attributes = True
 
+# 1. This is your existing OpportunityBase (or similar)
+#    It's good for reading data, but not for creating.
 class OpportunityBase(BaseModel):
     title: str
     description: str
     type: Optional[str] = None
     location: Optional[str] = None
-    tags: Optional[List[str]] = None
-    status: Optional[str] = "open"
 
+# --- UPDATE THIS SCHEMA ---
+# This is the correct schema for creating a new opportunity.
+# It only includes fields the user provides.
 class OpportunityCreate(OpportunityBase):
-    provider_id: int
+    tags: List[str] = []  # <-- Changed from str to List[str] to match your form
 
+# This is your main schema for *returning* data (reading from the DB)
 class Opportunity(OpportunityBase):
     id: int
     provider_id: int
     created_at: datetime
-    updated_at: datetime
+    updated_at: datetime  # <-- You will need to add this to your model
+    tags: List[str] = []
+    status: Optional[str] = None
 
     class Config:
-        from_attributes = True
+        from_attributes = True # Use this instead of orm_mode for Pydantic V2
 
 class ApplicationBase(BaseModel):
     status: Optional[str] = "pending"
@@ -136,3 +142,10 @@ class Subscription(SubscriptionBase):
 
     class Config:
         from_attributes = True
+
+class ChatRequest(BaseModel):
+    message: str
+
+class ChatResponse(BaseModel):
+    reply: str
+    opportunities: Optional[List[Opportunity]] = None

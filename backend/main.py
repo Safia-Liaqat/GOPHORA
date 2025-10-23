@@ -2,9 +2,22 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
+import json
+import os
+import google.generativeai as genai
+from pydantic import BaseModel, Field
 
 from . import auth, models, schemas
 from .database import SessionLocal, engine
+
+# ADD THIS SNIPPET
+from sqlalchemy import text
+
+# Run the CREATE EXTENSION command before creating tables
+with engine.connect() as connection:
+    connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+    connection.commit()
+# END OF SNIPPET
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -13,12 +26,11 @@ app = FastAPI()
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-
 
 def get_db():
     db = SessionLocal()
@@ -26,6 +38,107 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# === START: AI Configuration and Helpers ===
+
+# Load API Key and Models from environment
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    # Configure the Gemini client if an API key is provided
+    genai.configure(api_key=GEMINI_API_KEY)
+else:
+    print("Warning: GEMINI_API_KEY not set — running without Gemini. Embedding/chat will fallback where possible.")
+
+# Read model names and strip surrounding quotes if present (some .env files include quotes)
+def _normalize_env(name: Optional[str]) -> Optional[str]:
+    if not name:
+        return None
+    return name.strip().strip('"').strip("'")
+
+GEMINI_CHAT_MODEL_NAME = _normalize_env(os.getenv("GEMINI_CHAT_MODEL", "gemini-1.5-flash-latest"))
+GEMINI_EMBED_MODEL_NAME = _normalize_env(os.getenv("GEMINI_EMBED_MODEL"))
+
+# Function to generate embeddings for text
+def generate_embedding(text: str) -> list[float] | None:
+    """Generates a vector embedding for a given text using Gemini.
+
+    Returns None on failure so callers can implement sensible fallbacks.
+    """
+    if not GEMINI_API_KEY or not GEMINI_EMBED_MODEL_NAME:
+        # No model/key configured — bail out to allow tag-based fallback
+        print("generate_embedding: GEMINI not configured (key/model missing)")
+        return None
+    try:
+        # The client may raise; return None on any error so recommendation flow can fallback
+        result = genai.embed_content(model=GEMINI_EMBED_MODEL_NAME, content=text)
+        # result may be a dict or object depending on library version
+        if isinstance(result, dict) and "embedding" in result:
+            return result["embedding"]
+        # Try attribute access as a fallback
+        return getattr(result, "embedding", None)
+    except Exception as e:
+        print(f"Error generating embedding: {e}")
+        return None
+
+
+@app.post("/api/admin/reindex-opportunities")
+def reindex_opportunities(db: Session = Depends(get_db)):
+    """Compute embeddings for all opportunities and persist them.
+
+    - Skips opportunities when embedding generation fails or returns a vector of unexpected length.
+    - Returns a summary of updated and skipped rows.
+    """
+    ops = db.query(models.Opportunity).all()
+    updated = 0
+    skipped = 0
+    for opp in ops:
+        text_to_embed = f"Title: {opp.title}\nDescription: {opp.description}\nTags: {', '.join(opp.tags or [])}"
+        emb = generate_embedding(text_to_embed)
+        if not emb:
+            print(f"reindex: skipping {opp.id} - embedding generation failed or GEMINI not configured")
+            skipped += 1
+            continue
+        try:
+            # Basic safety: ensure embedding is a list/iterable and has the expected length
+            if hasattr(emb, "__len__"):
+                emb_len = len(emb)
+                # The DB column was created as Vector(768). If the returned embedding length doesn't match,
+                # skip to avoid DB errors. Log the mismatch so you can adjust Vector size if needed.
+                if emb_len != 768:
+                    print(f"reindex: skipping {opp.id} - embedding length {emb_len} != 768")
+                    skipped += 1
+                    continue
+            opp.embedding = emb
+            db.add(opp)
+            updated += 1
+        except Exception as e:
+            print(f"reindex: error updating opp {opp.id}: {e}")
+            skipped += 1
+    db.commit()
+    return {"updated": updated, "skipped": skipped, "total": len(ops)}
+    try:
+        # The client may raise; return None on any error so recommendation flow can fallback
+        result = genai.embed_content(model=GEMINI_EMBED_MODEL_NAME, content=text)
+        # result may be a dict or object depending on library version
+        if isinstance(result, dict) and "embedding" in result:
+            return result["embedding"]
+        # Try attribute access as a fallback
+        return getattr(result, "embedding", None)
+    except Exception as e:
+        print(f"Error generating embedding: {e}")
+        return None
+
+# === END: AI Configuration and Helpers ===
+
+
+@app.get("/api/debug/users", response_model=List[schemas.User])
+def get_all_users(db: Session = Depends(get_db)):
+    return db.query(models.User).all()
+
+@app.get("/api/debug/opportunities", response_model=List[schemas.Opportunity])
+def get_all_opportunities(db: Session = Depends(get_db)):
+    return db.query(models.Opportunity).all()
+
 
 @app.post("/api/auth/register", response_model=schemas.User)
 def register_user(user_data: schemas.RegisterRequest, db: Session = Depends(get_db)):
@@ -44,7 +157,6 @@ def register_user(user_data: schemas.RegisterRequest, db: Session = Depends(get_
     db.commit()
     db.refresh(db_user)
 
-    # Create a profile for the user with the registration data
     profile_data = {
         "user_id": db_user.id,
         "country": user_data.country,
@@ -61,7 +173,6 @@ def register_user(user_data: schemas.RegisterRequest, db: Session = Depends(get_
     db.add(db_profile)
     db.commit()
     db.refresh(db_profile)
-
     return db_user
 
 @app.post("/api/auth/login", response_model=schemas.Token)
@@ -73,7 +184,7 @@ def login_for_access_token(form_data: schemas.LoginRequest, db: Session = Depend
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if user.role != form_data.role:
+    if form_data.role == "provider" and user.role != "provider":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"You are not authorized to log in as a {form_data.role}",
@@ -101,7 +212,6 @@ def update_user_profile(
     db: Session = Depends(get_db),
 ):
     profile = db.query(models.Profile).filter(models.Profile.user_id == current_user.id).first()
-
     if not profile:
         profile = models.Profile(user_id=current_user.id, **profile_update.dict(exclude_unset=True))
         db.add(profile)
@@ -109,91 +219,163 @@ def update_user_profile(
         update_data = profile_update.dict(exclude_unset=True)
         for key, value in update_data.items():
             setattr(profile, key, value)
-
     db.commit()
     db.refresh(profile)
     return profile
 
-@app.get("/api/applications/me", response_model=List[schemas.ApplicationWithOpportunity])
-def read_seeker_applications(
-    current_user: models.User = Depends(auth.get_current_active_seeker),
-    db: Session = Depends(get_db),
-):
-    applications = db.query(models.Application).filter(models.Application.seeker_id == current_user.id).options(joinedload(models.Application.opportunity)).all()
-    return applications
-
 @app.post("/api/opportunities", response_model=schemas.Opportunity)
 def create_opportunity(
-    opportunity: schemas.OpportunityBase,
+    opportunity: schemas.OpportunityCreate, # <-- CRITICAL FIX: Use OpportunityCreate
     current_user: models.User = Depends(auth.get_current_active_provider),
     db: Session = Depends(get_db),
 ):
-    opportunity_data = opportunity.dict(exclude_unset=True)
-    location = opportunity_data.get("location")
+    
+    # Generate the embedding
+    text_to_embed = f"Title: {opportunity.title}\nDescription: {opportunity.description}\nTags: {', '.join(opportunity.tags)}"
+    embedding_vector = generate_embedding(text_to_embed)
 
-    if not location:
-        profile = db.query(models.Profile).filter(models.Profile.user_id == current_user.id).first()
-        if profile and profile.city and profile.country:
-            location = f"{profile.city}, {profile.country}"
-
-    if "tags" in opportunity_data and isinstance(opportunity_data["tags"], str):
-        if opportunity_data["tags"]:
-            opportunity_data["tags"] = [tag.strip() for tag in opportunity_data["tags"].split(",")]
-        else:
-            opportunity_data["tags"] = []
-
+    # Create the new database model
+    # The database will set created_at and updated_at automatically
     db_opportunity = models.Opportunity(
-        **opportunity.dict(),
-        provider_id=current_user.id
+        title=opportunity.title,
+        description=opportunity.description,
+        type=opportunity.type,
+        location=opportunity.location,
+        tags=opportunity.tags,        # <-- Pass the list of tags directly
+        provider_id=current_user.id,
+        embedding=embedding_vector
+        # Note: created_at and updated_at are set by default in the DB
     )
+    
     db.add(db_opportunity)
     db.commit()
     db.refresh(db_opportunity)
     return db_opportunity
 
+# ... (all your other endpoints like apply, get applications, etc. remain the same)
+@app.get("/api/applications/me", response_model=List[schemas.ApplicationWithOpportunity])
+def read_seeker_applications(current_user: models.User = Depends(auth.get_current_active_seeker), db: Session = Depends(get_db)):
+    return db.query(models.Application).filter(models.Application.seeker_id == current_user.id).options(joinedload(models.Application.opportunity)).all()
+
 @app.post("/api/applications/apply", response_model=schemas.Application)
-def apply_for_opportunity(
-    opportunity_id: int,
-    cover_letter: Optional[str] = None,
-    current_user: models.User = Depends(auth.get_current_active_seeker),
-    db: Session = Depends(get_db),
-):
-    # Check if the opportunity exists
+def apply_for_opportunity(opportunity_id: int, cover_letter: Optional[str] = None, current_user: models.User = Depends(auth.get_current_active_seeker), db: Session = Depends(get_db)):
     opportunity = db.query(models.Opportunity).filter(models.Opportunity.id == opportunity_id).first()
     if not opportunity:
         raise HTTPException(status_code=404, detail="Opportunity not found")
-
-    # Check if the seeker has already applied to this opportunity
-    existing_application = db.query(models.Application).filter(
-        models.Application.seeker_id == current_user.id,
-        models.Application.opportunity_id == opportunity_id
-    ).first()
+    existing_application = db.query(models.Application).filter(models.Application.seeker_id == current_user.id, models.Application.opportunity_id == opportunity_id).first()
     if existing_application:
         raise HTTPException(status_code=400, detail="Already applied to this opportunity")
-
-    # Create the new application
-    db_application = models.Application(
-        seeker_id=current_user.id,
-        opportunity_id=opportunity_id,
-        cover_letter=cover_letter
-    )
+    db_application = models.Application(seeker_id=current_user.id, opportunity_id=opportunity_id, cover_letter=cover_letter)
     db.add(db_application)
     db.commit()
     db.refresh(db_application)
     return db_application
 
 @app.get("/api/opportunities/me", response_model=List[schemas.Opportunity])
-def read_provider_opportunities(
-    current_user: models.User = Depends(auth.get_current_active_provider),
-    db: Session = Depends(get_db),
-):
-    opportunities = db.query(models.Opportunity).filter(models.Opportunity.provider_id == current_user.id).all()
-    return opportunities
+def read_provider_opportunities(current_user: models.User = Depends(auth.get_current_active_provider), db: Session = Depends(get_db)):
+    return db.query(models.Opportunity).filter(models.Opportunity.provider_id == current_user.id).all()
 
 @app.get("/api/opportunities", response_model=List[schemas.Opportunity])
 def read_opportunities(db: Session = Depends(get_db)):
-    opportunities = db.query(models.Opportunity).all()
-    return opportunities
+    return db.query(models.Opportunity).all()
+
+@app.get("/api/opportunities/recommend", response_model=List[schemas.Opportunity])
+def get_recommendations_for_seeker(
+    current_user: models.User = Depends(auth.get_current_active_seeker),
+    db: Session = Depends(get_db),
+):
+    # 1. Get Seeker's Profile and Skills
+    profile = db.query(models.Profile).filter(models.Profile.user_id == current_user.id).first()
+    
+    if not profile or not profile.skills:
+        # If no profile or no skills, just return the 10 most recent jobs
+        return db.query(models.Opportunity).order_by(models.Opportunity.created_at.desc()).limit(10).all()
+
+    seeker_skills = profile.skills
+    seeker_query = f"A job seeker with skills in: {', '.join(seeker_skills)}"
+
+    # 2. Retrieve: Try semantic search via embeddings; if unavailable, fallback to tag overlap
+    query_embedding = generate_embedding(seeker_query)
+    similar_opportunities = []
+
+    if query_embedding:
+        try:
+            # Get a larger list of candidates by semantic similarity
+            similar_opportunities = db.query(models.Opportunity).order_by(
+                models.Opportunity.embedding.cosine_distance(query_embedding)
+            ).limit(20).all()
+        except Exception as e:
+            print(f"Error during semantic DB query: {e}")
+
+    if not similar_opportunities:
+        # Fallback: simple tag/skill overlap scoring
+        seeker_set = set([s.lower() for s in seeker_skills])
+        candidates = db.query(models.Opportunity).all()
+        scored = []
+        for opp in candidates:
+            opp_tags = [t.lower() for t in (opp.tags or [])]
+            overlap = len(seeker_set.intersection(opp_tags))
+            if overlap > 0:
+                scored.append((overlap, opp))
+        # sort by overlap desc, then by created_at desc
+        scored.sort(key=lambda x: (-x[0], getattr(x[1], 'created_at', None)), )
+        similar_opportunities = [opp for score, opp in scored][:20]
+
+    if not similar_opportunities:
+        return [] # Return an empty list if no matches are found
+
+    # 3. Filter: Use the AI to review the candidates and return ONLY IDs
+    context = ""
+    for opp in similar_opportunities:
+        context += f"ID: {opp.id}\nTitle: {opp.title}\nDescription: {opp.description}\nTags: {', '.join(opp.tags)}\n---\n"
+
+    filter_prompt = f"""
+    You are a smart career assistant. A user has the following skills: "{seeker_query}"
+
+    I have found 20 potential matches from the database. Your job is to:
+    1.  Carefully review each job in the "Database Context" below.
+    2.  Compare each job's title, description, and tags to the user's skills.
+    3.  Create a new, filtered list containing ONLY the IDs of the jobs that are TRULY relevant.
+    
+    **CRITICAL RULE:** Only include jobs that are a strong match for the user's skills. Discard any that are not relevant.
+    
+    Finally, provide a response in the required JSON format.
+    - The 'reply' field is not important for this, just put 'OK'.
+    - The 'relevant_ids' list should contain ONLY the IDs of the relevant jobs you selected.
+    - If NO jobs are relevant, return an empty 'relevant_ids' list.
+
+    Database Context:
+    {context}
+    """
+    
+    try:
+        filter_model = genai.GenerativeModel(
+            GEMINI_CHAT_MODEL_NAME,
+            generation_config={"response_mime_type": "application/json"}
+        )
+        ai_json_response = filter_model.generate_content(
+            [filter_prompt],
+            generation_config={"response_schema": AIFilterResponse}
+        ).text
+        
+        ai_data = json.loads(ai_json_response)
+        relevant_ids = ai_data.get("relevant_ids", [])
+
+        # 4. Database Fetch: Use the safe IDs to get full, valid objects
+        if not relevant_ids:
+            return [] # Return empty list if AI filtered everything out
+
+        final_opportunities = db.query(models.Opportunity).filter(
+            models.Opportunity.id.in_(relevant_ids)
+        ).all()
+        
+        return final_opportunities
+        
+    except Exception as e:
+        print(f"Error in recommendation endpoint: {str(e)}")
+        # Fallback: just return the 10 most recent jobs on error
+        return db.query(models.Opportunity).order_by(models.Opportunity.created_at.desc()).limit(10).all()
+
 
 @app.get("/api/opportunities/{opportunity_id}", response_model=schemas.Opportunity)
 def read_opportunity(opportunity_id: int, db: Session = Depends(get_db)):
@@ -203,64 +385,222 @@ def read_opportunity(opportunity_id: int, db: Session = Depends(get_db)):
     return db_opportunity
 
 @app.put("/api/opportunities/{opportunity_id}", response_model=schemas.Opportunity)
-def update_opportunity(
-    opportunity_id: int,
-    opportunity_update: schemas.OpportunityBase,
-    current_user: models.User = Depends(auth.get_current_active_provider),
-    db: Session = Depends(get_db),
-):
+def update_opportunity(opportunity_id: int, opportunity_update: schemas.OpportunityBase, current_user: models.User = Depends(auth.get_current_active_provider), db: Session = Depends(get_db)):
     db_opportunity = db.query(models.Opportunity).filter(models.Opportunity.id == opportunity_id).first()
     if db_opportunity is None:
         raise HTTPException(status_code=404, detail="Opportunity not found")
     if db_opportunity.provider_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to update this opportunity")
-
     update_data = opportunity_update.dict(exclude_unset=True)
     if "tags" in update_data and isinstance(update_data["tags"], str):
-        if update_data["tags"]:
-            update_data["tags"] = [tag.strip() for tag in update_data["tags"].split(",")]
-        else:
-            update_data["tags"] = []
-
+        update_data["tags"] = [tag.strip() for tag in update_data["tags"].split(",")] if update_data["tags"] else []
     for key, value in update_data.items():
         setattr(db_opportunity, key, value)
-
     db.commit()
     db.refresh(db_opportunity)
     return db_opportunity
 
 @app.delete("/api/opportunities/{opportunity_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_opportunity(
-    opportunity_id: int,
-    current_user: models.User = Depends(auth.get_current_active_provider),
-    db: Session = Depends(get_db),
-):
+def delete_opportunity(opportunity_id: int, current_user: models.User = Depends(auth.get_current_active_provider), db: Session = Depends(get_db)):
     db_opportunity = db.query(models.Opportunity).filter(models.Opportunity.id == opportunity_id).first()
     if db_opportunity is None:
         raise HTTPException(status_code=404, detail="Opportunity not found")
     if db_opportunity.provider_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to delete this opportunity")
-    
     db.delete(db_opportunity)
     db.commit()
     return
 
 @app.get("/api/opportunities/{opportunity_id}/applications", response_model=List[schemas.Application])
-def get_applications_for_opportunity(
-    opportunity_id: int,
-    current_user: models.User = Depends(auth.get_current_active_provider),
-    db: Session = Depends(get_db),
-):
-    # Check if the opportunity exists and belongs to the current provider
-    opportunity = db.query(models.Opportunity).filter(
-        models.Opportunity.id == opportunity_id,
-        models.Opportunity.provider_id == current_user.id
-    ).first()
-
+def get_applications_for_opportunity(opportunity_id: int, current_user: models.User = Depends(auth.get_current_active_provider), db: Session = Depends(get_db)):
+    opportunity = db.query(models.Opportunity).filter(models.Opportunity.id == opportunity_id, models.Opportunity.provider_id == current_user.id).first()
     if not opportunity:
         raise HTTPException(status_code=404, detail="Opportunity not found or not owned by current provider")
+    return db.query(models.Application).filter(models.Application.opportunity_id == opportunity_id).all()
 
-    applications = db.query(models.Application).filter(
-        models.Application.opportunity_id == opportunity_id
-    ).all()
-    return applications
+
+# === NEW ENDPOINT: AI-Powered Recommendations ===
+@app.post("/api/chat/recommend", response_model=schemas.ChatResponse)
+def recommend_opportunities(chat_request: schemas.ChatRequest, db: Session = Depends(get_db)):
+    # 1. Retrieve: Find relevant opportunities using vector search
+    query_embedding = generate_embedding(chat_request.message)
+    if not query_embedding:
+        raise HTTPException(status_code=500, detail="Could not generate query embedding.")
+
+    # Find the top 3 most relevant opportunities using cosine distance (<=>)
+    similar_opportunities = db.query(models.Opportunity).order_by(
+        models.Opportunity.embedding.cosine_distance(query_embedding)
+    ).limit(3).all()
+
+    if not similar_opportunities:
+        return {"reply": "I couldn't find any opportunities in our database that match your request. Please try rephrasing your search."}
+
+    # 2. Augment: Prepare a clean context for the AI model
+    context = ""
+    for opp in similar_opportunities:
+        context += f"Opportunity Title: {opp.title}\n"
+        context += f"Description: {opp.description}\n"
+        context += f"Tags: {', '.join(opp.tags)}\n---\n"
+
+    # 3. Generate: Use a restrictive prompt to ensure AI only uses the provided context
+    prompt = f"""
+    You are a career assistant for our platform, GOPHORA.
+    Your ONLY job is to present the user with relevant opportunities from the database context provided below.
+
+    **Strict Rules:**
+    1. You MUST ONLY use the information from the "Database Context" section.
+    2. Do NOT invent, add, or mention any opportunities not listed in the context.
+    3. Introduce yourself and present the opportunities I found for the user based on their query: "{chat_request.message}"
+    4. For each opportunity, briefly summarize it.
+
+    **Database Context:**
+    ---
+    {context}
+    ---
+    """
+    
+    try:
+        model = genai.GenerativeModel(GEMINI_CHAT_MODEL_NAME)
+        response = model.generate_content(prompt)
+        ai_reply = response.text
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating AI response: {str(e)}"
+        )
+
+    return {"reply": ai_reply}
+
+
+class FilterOpportunity(BaseModel):
+    """A single, relevant opportunity to show the user."""
+    id: int = Field(description="The unique ID of the opportunity")
+    title: str = Field(description="The job title")
+    description: str = Field(description="A brief job description")
+    location: Optional[str] = Field(description="The job location")
+    type: Optional[str] = Field(description="The job type (e.g., 'job', 'internship')")
+    tags: List[str] = Field(description="A list of relevant skills or tags")
+
+class AIFilterResponse(BaseModel):
+    """The AI's complete response, including an intro and a list of IDs."""
+    reply: str = Field(description="A brief, one-sentence introduction (e.g., 'Here's what I found...')")
+    relevant_ids: List[int] = Field(description="A list of opportunity IDs that are ACTUALLY relevant to the user's query. This can be an empty list if no matches are found.")
+
+# --- END: Define the AI's JSON output structure ---
+
+
+@app.post("/api/chat", response_model=schemas.ChatResponse)
+def handle_chat(chat_request: schemas.ChatRequest, db: Session = Depends(get_db)):
+    user_message = chat_request.message
+    
+    # 1. INTENT DETECTION (Same as before)
+    intent_prompt = f"""
+    Analyze the user's message and classify its intent.
+    Respond with only one word: 'OPPORTUNITY' if the user is asking to find a job, role, or opportunity.
+    Otherwise, respond with 'QUESTION'.
+
+    User message: "{user_message}"
+    """
+    
+    try:
+        intent_model = genai.GenerativeModel(GEMINI_CHAT_MODEL_NAME)
+        intent_response = intent_model.generate_content(intent_prompt)
+        intent = intent_response.text.strip().upper()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error detecting intent: {str(e)}")
+
+    # 2. ACTION: Based on the intent
+    
+    # --- THIS IS THE NEW, ROBUST LOGIC ---
+    if "OPPORTUNITY" in intent:
+        # 1. Retrieve: Get top 10 potential matches
+        query_embedding = generate_embedding(user_message)
+        if not query_embedding:
+            raise HTTPException(status_code=500, detail="Could not generate query embedding.")
+
+        similar_opportunities = db.query(models.Opportunity).order_by(
+            models.Opportunity.embedding.cosine_distance(query_embedding)
+        ).limit(10).all()
+
+        if not similar_opportunities:
+            return {"reply": "I couldn't find any opportunities in our database that match your request. Please try rephrasing your search."}
+
+        # 2. Filter: Use the AI to review the candidates and return ONLY IDs
+        context = ""
+        for opp in similar_opportunities:
+            # Provide all info for the AI to make a good decision
+            context += f"ID: {opp.id}\nTitle: {opp.title}\nDescription: {opp.description}\nTags: {', '.join(opp.tags)}\n---\n"
+
+        filter_prompt = f"""
+        You are a smart career assistant. A user is looking for a job.
+        Their request is: "{user_message}"
+
+        I have found 10 potential matches from the database. Your job is to:
+        1.  Carefully review each job in the "Database Context" below.
+        2.  Compare each job's title, description, and tags to the user's request.
+        3.  Create a new, filtered list containing ONLY the IDs of the jobs that are TRULY relevant.
+        
+        **CRITICAL RULE:** If the user asks for 'C++' or 'Swift', you MUST DISCARD a job that only lists 'Python'. Only include exact or very close skill matches.
+        
+        Finally, provide a response in the required JSON format.
+        - The 'reply' should be a single, friendly introduction.
+        - The 'relevant_ids' list should contain ONLY the IDs of the relevant jobs you selected.
+        - If NO jobs are relevant, return an empty 'relevant_ids' list and a 'reply' saying you couldn't find a match.
+
+        Database Context:
+        {context}
+        """
+        
+        try:
+            filter_model = genai.GenerativeModel(
+                GEMINI_CHAT_MODEL_NAME,
+                generation_config={"response_mime_type": "application/json"}
+            )
+            ai_json_response = filter_model.generate_content(
+                [filter_prompt],
+                generation_config={"response_schema": AIFilterResponse}
+            ).text
+            
+            ai_data = json.loads(ai_json_response)
+            
+            ai_reply = ai_data.get("reply", "Here's what I found:")
+            relevant_ids = ai_data.get("relevant_ids", [])
+
+            # 3. Database Fetch: Use the safe IDs to get full, valid objects
+            final_opportunities = []
+            if relevant_ids:
+                final_opportunities = db.query(models.Opportunity).filter(
+                    models.Opportunity.id.in_(relevant_ids)
+                ).all()
+
+            # This response is guaranteed to match your schemas.ChatResponse
+            return {"reply": ai_reply, "opportunities": final_opportunities}
+            
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error filtering AI response: {str(e)}")
+
+    # --- END OF NEW LOGIC ---
+
+    # If the user is asking a general question, use the fixed context
+    else: 
+        general_qa_prompt = f"""
+        You are GOPHORA AI, a helpful assistant. Answer the user's question using ONLY the provided context.
+        ---CONTEXT---
+        ... (Your context about GOPHORA) ...
+        ---END CONTEXT---
+        User's Question: "{user_message}"
+        Answer:
+        """
+        
+        try:
+            response_model = genai.GenerativeModel(GEMINI_CHAT_MODEL_NAME)
+            final_response = response_model.generate_content(general_qa_prompt)
+            ai_reply = final_response.text
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error generating final AI response: {str(e)}")
+
+        # Return with an empty list for opportunities
+        return {"reply": ai_reply, "opportunities": []}
+    
+# Duplicate recommend endpoint removed. Kept the original `/api/opportunities/recommend`
+# defined earlier in this file (placed before the dynamic `/api/opportunities/{opportunity_id}` route)

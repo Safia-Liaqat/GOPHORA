@@ -14,6 +14,41 @@ export default function LoginForm() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // --- NEW: Helper function to handle pending applications ---
+  const handlePendingApplication = async (token) => {
+    const pendingAppId = localStorage.getItem("pending_application_id");
+    
+    // Check if there is a pending application ID
+    if (pendingAppId) {
+      try {
+        const res = await fetch(`/api/applications/apply?opportunity_id=${pendingAppId}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        
+        if (!res.ok) {
+          throw new Error("Failed to submit pending application after login.");
+        }
+        
+        // Success! Increment the dashboard delta count
+        const key = "applicationsSentDelta";
+        const current = parseInt(localStorage.getItem(key) || "0", 10);
+        localStorage.setItem(key, String(current + 1));
+        
+      } catch (err) {
+        // Don't block navigation, just log the error
+        console.error("Error submitting pending application:", err);
+      } finally {
+        // Clear the pending ID regardless of success or failure
+        localStorage.removeItem("pending_application_id");
+      }
+    }
+  };
+  // --- END OF NEW FUNCTION ---
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -40,7 +75,10 @@ export default function LoginForm() {
       localStorage.setItem("role", role);
 
       if (role === "seeker") {
+        // --- UPDATED: Check for pending apps before navigating ---
+        await handlePendingApplication(data.access_token);
         navigate("/seeker/dashboard");
+        // --- END OF UPDATE ---
       } else if (role === "provider") {
         navigate("/provider/dashboard");
       }

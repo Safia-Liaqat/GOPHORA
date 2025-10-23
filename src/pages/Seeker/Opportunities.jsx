@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function Opportunities() {
   const [opportunities, setOpportunities] = useState([]);
@@ -7,30 +8,85 @@ export default function Opportunities() {
   const [selectedLocation, setSelectedLocation] = useState("");
   const [appliedIds, setAppliedIds] = useState([]);
   const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchOpportunities = async () => {
+      setError(""); // Clear previous errors at the start
       try {
-        const response = await fetch("/api/opportunities");
-        if (!response.ok) throw new Error("Failed to fetch opportunities");
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setError("You must be logged in to see recommendations.");
+          return;
+        }
+
+        const response = await fetch("/api/opportunities/recommend", {
+          headers: {
+            Authorization: `Bearer ${token}`, // Only Authorization needed
+          },
+        });
+
+        // --- MORE ROBUST ERROR HANDLING ---
+        if (!response.ok) {
+          let errorDetail = `Request failed with status ${response.status}`;
+          try {
+            // Attempt to parse the backend's JSON error response
+            const errorData = await response.json();
+            // Use the 'detail' field if it exists, otherwise stringify the whole object
+            errorDetail = errorData.detail || JSON.stringify(errorData);
+          } catch (jsonError) {
+            // If response is not JSON or parsing fails, use the status text
+            errorDetail = response.statusText || errorDetail;
+            console.error("Could not parse error JSON:", jsonError);
+          }
+          throw new Error(errorDetail); // Throw the extracted or generated error message
+        }
+        // --- END MORE ROBUST ERROR HANDLING ---
+        
         const data = await response.json();
-        setOpportunities(data);
+        setOpportunities(Array.isArray(data) ? data : []); 
+
       } catch (err) {
-        setError(err.message);
+        console.error("Fetch Error:", err); // Log the full error
+        // Normalize error into a readable string for the UI
+        const formatError = (e) => {
+          try {
+            if (!e) return "An unknown error occurred";
+            if (typeof e === "string") return e;
+            if (e instanceof Error) return e.message || e.toString();
+            // Some backends return a plain object like { detail: '...' }
+            if (typeof e === "object") {
+              if (e.detail) return String(e.detail);
+              if (e.message) return String(e.message);
+              // fallback to JSON
+              return JSON.stringify(e);
+            }
+            return String(e);
+          } catch (formatErr) {
+            return "An unknown error occurred";
+          }
+        };
+
+        setError(formatError(err));
       }
     };
     fetchOpportunities();
-  }, []);
+  }, []); // Runs once on load
 
+  // ... (handleApply function remains the same) ...
   const handleApply = async (id) => {
-    // Prevent duplicate apply locally
     if (appliedIds.includes(id)) return;
+    setError(""); 
 
     try {
       const token = localStorage.getItem("token");
-      if (!token) throw new Error("You must be logged in to apply.");
 
-      // Call backend to create the application. Backend expects opportunity_id as a query param.
+      if (!token) {
+        localStorage.setItem("pending_application_id", id);
+        navigate("/login");
+        return; 
+      }
+
       const res = await fetch(`/api/applications/apply?opportunity_id=${id}`, {
         method: "POST",
         headers: {
@@ -44,26 +100,25 @@ export default function Opportunities() {
         throw new Error(data.detail || "Failed to apply to opportunity");
       }
 
-      // On success add to appliedIds so button shows "Applied"
       setAppliedIds((prev) => [...prev, id]);
-      // increment a local delta so dashboard can reflect the new application immediately
-      try {
-        const key = "applicationsSentDelta";
-        const current = parseInt(localStorage.getItem(key) || "0", 10);
-        localStorage.setItem(key, String(current + 1));
-      } catch (e) {
-        // ignore storage errors
-      }
+      
+      const key = "applicationsSentDelta";
+      const current = parseInt(localStorage.getItem(key) || "0", 10);
+      localStorage.setItem(key, String(current + 1));
+
     } catch (err) {
       setError(err.message || "Failed to apply");
     }
   };
 
+  // Ensure opportunities is always treated as an array
+  const safeOpportunities = Array.isArray(opportunities) ? opportunities : [];
+
   const availableLocations = [
-    ...new Set(opportunities.map((op) => op.location).filter(Boolean)),
+    ...new Set(safeOpportunities.map((op) => op.location).filter(Boolean)),
   ];
 
-  const filteredOpportunities = opportunities.filter((op) => {
+  const filteredOpportunities = safeOpportunities.filter((op) => {
     const matchesCategory = selectedCategory ? op.type === selectedCategory : true;
     const matchesLocation = selectedLocation ? op.location === selectedLocation : true;
     return matchesCategory && matchesLocation;
@@ -77,12 +132,13 @@ export default function Opportunities() {
   return (
     <div className="text-white">
       <h2 className="text-2xl font-semibold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-[#C5A3FF] to-[#9E7BFF] drop-shadow-[0_0_10px_rgba(158,123,255,0.6)]">
-        Browse Opportunities
+        Recommended Opportunities
       </h2>
 
-      {error && <p className="text-red-500 bg-red-500/10 p-3 rounded-lg mb-4">{error}</p>}
+      {/* Show detailed error message */}
+      {error && <p className="text-red-500 bg-red-500/10 p-3 rounded-lg mb-4">Error: {error}</p>}
 
-      {/* Filters */}
+      {/* Filters JSX */}
       <div className="flex flex-col md:flex-row gap-4 mb-8 max-w-3xl">
         {/* Category */}
         <div className="flex-1">
@@ -115,9 +171,9 @@ export default function Opportunities() {
             <select
               value={selectedLocation}
               onChange={(e) => setSelectedLocation(e.target.value)}
-              disabled={opportunities.length === 0}
+              disabled={safeOpportunities.length === 0}
               className={`border border-white/20 p-3 pr-10 rounded-xl w-full bg-[#161B30] text-white appearance-none focus:outline-none focus:ring-2 focus:ring-[#C5A3FF] transition-all duration-200 ${
-                opportunities.length === 0 ? "opacity-60 cursor-not-allowed" : ""
+                safeOpportunities.length === 0 ? "opacity-60 cursor-not-allowed" : ""
               }`}
             >
               <option value="">All Locations</option>
@@ -146,8 +202,8 @@ export default function Opportunities() {
       </div>
 
       {/* No Results */}
-      {filteredOpportunities.length === 0 && (
-        <p className="text-gray-400 p-4 text-center">No opportunities found for the selected filters.</p>
+      {filteredOpportunities.length === 0 && !error && (
+        <p className="text-gray-400 p-4 text-center">No opportunities found for your profile. Try updating your skills!</p>
       )}
 
       {/* Opportunities Table */}
