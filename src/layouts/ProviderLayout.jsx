@@ -15,9 +15,9 @@ export default function ProviderLayout() {
 
   const navLinks = [
     { path: "/provider/dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
-    { path: "/provider/opportunities", label: "My Opportunities", icon: <Briefcase size={18} /> },
+    { path: "/provider/opportunities", label: "My Invitations", icon: <Briefcase size={18} /> },
     { path: "/provider/create-opportunity", label: "Post Opportunity", icon: <PlusCircle size={18} /> },
-    { path: "/provider/profile", label: "Profile", icon: <User size={18} /> },
+    { path: "/provider/profile", label: "My Explorer ID", icon: <User size={18} /> },
   ];
 
   const handleLogout = () => {

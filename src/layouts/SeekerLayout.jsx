@@ -44,7 +44,7 @@ export default function SeekerLayout() {
               to="/seeker/profile"
               className="text-gray-300 hover:text-[#C5A3FF] font-medium transition-all duration-200"
             >
-              Profile
+              My Explorer ID 
             </Link>
           </nav>
         </div>

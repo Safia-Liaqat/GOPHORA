@@ -28,8 +28,8 @@ export default function HeroSection() {
           <span className="text-blue-400">Opportunities</span>
         </h1>
         <p className="text-lg md:text-xl text-gray-200 mb-8">
-          Gophora empowers seekers and providers to connect through AI — sensing
-          talent, potential, and possibilities like a shark feels the ocean.
+          Our mission is to keep humanity busy <br/>
+          The first digital platform that senses the world, like sharks feel the ocean.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

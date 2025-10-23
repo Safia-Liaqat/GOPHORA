@@ -9,9 +9,7 @@ const Navbar = () => {
   const location = useLocation();
 
   const navLinks = [
-    { name: "Explore Missions", href: "/opportunities/all" },
     { name: "Chat AI", href: "/chat" },
-    { name: "How It Works", href: "/gophoraflow" },
     { name: "AboutUs", href: "/about" },
   ];
 
