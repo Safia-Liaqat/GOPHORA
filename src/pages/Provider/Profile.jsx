@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function Profile() {
   const [profile, setProfile] = useState({
@@ -14,24 +15,15 @@ export default function Profile() {
   useEffect(() => {
     const fetchProfileData = async () => {
       const token = localStorage.getItem("token");
-      if (!token) {
-        // Handle not logged in
-        return;
-      }
+      if (!token) return;
 
       try {
         const [userRes, profileRes] = await Promise.all([
-          fetch("/api/users/me", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch("/api/profiles/me", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
+          fetch("/api/users/me", { headers: { Authorization: `Bearer ${token}` } }),
+          fetch("/api/profiles/me", { headers: { Authorization: `Bearer ${token}` } }),
         ]);
 
-        if (!userRes.ok || !profileRes.ok) {
-          throw new Error("Failed to fetch profile data");
-        }
+        if (!userRes.ok || !profileRes.ok) throw new Error("Failed to fetch profile data");
 
         const userData = await userRes.json();
         const profileData = await profileRes.json();
@@ -41,12 +33,13 @@ export default function Profile() {
           email: userData.email || "",
           organization: profileData.company_name || "",
           website: profileData.company_website || "",
-          location: [profileData.city, profileData.country]
-            .filter(Boolean)
-            .join(", "),
+          location: [profileData.city, profileData.country].filter(Boolean).join(", "),
         });
       } catch (error) {
         console.error("Error fetching profile:", error);
+        toast.error("Failed to load profile data!", {
+          style: { background: "#0F1326", color: "#fff", border: "1px solid #FF6B6B" },
+        });
       }
     };
 
@@ -60,11 +53,26 @@ export default function Profile() {
   const handleSave = () => {
     // Here you would send the updated data to the backend
     setEditMode(false);
-    alert("Profile updated successfully!");
+
+    toast.success("Profile updated successfully! 🚀", {
+      style: {
+        background: "#0F1326",
+        color: "#fff",
+        border: "1px solid #C5A3FF",
+        fontWeight: "500",
+      },
+      iconTheme: {
+        primary: "#C5A3FF",
+        secondary: "#0F1326",
+      },
+    });
   };
 
   return (
     <div className="text-white">
+      {/* Toast provider */}
+      <Toaster position="top-right" reverseOrder={false} />
+
       <h2 className="text-3xl font-semibold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-[#C5A3FF] to-[#9E7BFF] drop-shadow-[0_0_10px_rgba(158,123,255,0.6)]">
         My Profile
       </h2>
@@ -78,7 +86,7 @@ export default function Profile() {
           value={profile.name}
           onChange={handleChange}
           disabled={!editMode}
-          className={`w-full border border-white/20 p-3 rounded-xl bg-white/5 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#C5A3FF] transition-all duration-200`}
+          className="w-full border border-white/20 p-3 rounded-xl bg-white/5 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#C5A3FF] transition-all duration-200"
         />
 
         {/* Email */}

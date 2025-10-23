@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import {
   UserPlusIcon,
   CursorArrowRaysIcon,
@@ -12,20 +13,23 @@ const steps = [
     description:
       "Set up your profile with skills, interests, and mission preferences to get personalized recommendations instantly.",
     link: "Start now",
+    path: "/register",
   },
   {
     icon: <CursorArrowRaysIcon className="h-6 w-6 text-[#A28EFF]" />,
-    title: "Check the Mission AI",
+    title: "Choose Your Mission",
     description:
-      "Our AI scans your profile and finds the best real-time opportunities tailored to your passions and expertise.",
-    link: "Explore AI",
+      "Browse and choose missions that match your interests and skills — your next adventure is just a click away.",
+    link: "Explore missions",
+    path: "/explore-missions",
   },
   {
     icon: <RocketLaunchIcon className="h-6 w-6 text-[#A28EFF]" />,
-    title: "Complete Missions",
+    title: "Register & Jump In",
     description:
-      "Accept missions, complete tasks, and earn credits while building your explorer legacy on the GOPHORA platform.",
-    link: "View missions",
+      "Choose experiences you’d like to jump into. Earn reputation that unlocks credits to keep exploring and growing on GOPHORA.",
+    link: "Join now",
+    path: "/register",
   },
 ];
 
@@ -41,7 +45,7 @@ export default function HowItWorks() {
           How <span className="text-[#A28EFF]">GOPHORA</span> Works
         </h2>
         <p className="text-gray-300 text-base mt-3 max-w-2xl mx-auto">
-          A revolutionary platform that connects people with opportunities in real time —
+          A revolutionary platform that connects people with opportunities in real time — 
           where every explorer finds their next mission.
         </p>
       </div>
@@ -73,14 +77,14 @@ export default function HowItWorks() {
             </p>
 
             {/* Link */}
-            <a
-              href="#"
+            <Link
+              to={step.path}
               className="text-sm text-[#A28EFF] font-medium inline-flex items-center gap-1 
                          relative z-10 hover:underline hover:text-[#B8A9FF] transition"
             >
               {step.link}
               <span>→</span>
-            </a>
+            </Link>
           </div>
         ))}
       </div>
