@@ -1,21 +1,73 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 
 export default function OpportunityForm({ onSubmit, initialData = {} }) {
+  const [countries, setCountries] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [loadingCities, setLoadingCities] = useState(false);
+  const [errorCities, setErrorCities] = useState(null);
+
   const [formData, setFormData] = useState({
     title: initialData.title || "",
     type: initialData.type || "job",
     description: initialData.description || "",
-    location: initialData.location || "",
+    workMode: initialData.workMode || "remote",
+    country: initialData.country || "",
+    city: initialData.city || "",
+    lat: initialData.lat || null,
+    lng: initialData.lng || null,
     tags: initialData.tags || "",
   });
+
+  // Fetch countries once
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await fetch("https://countriesnow.space/api/v0.1/countries");
+        if (!res.ok) throw new Error("Failed to fetch countries");
+        const data = await res.json();
+        const countryList = data.data.map((c) => ({
+          name: c.country,
+          cities: c.cities,
+        }));
+        setCountries(countryList);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchCountries();
+  }, []);
+
+  // Update cities when country changes
+  useEffect(() => {
+    if (!formData.country) {
+      setCities([]);
+      return;
+    }
+    const countryObj = countries.find((c) => c.name === formData.country);
+    if (countryObj) {
+      setCities(countryObj.cities.map((cityName) => ({ name: cityName })));
+    }
+  }, [formData.country, countries]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleCityChange = (e) => {
+    const cityName = e.target.value;
+    setFormData((prev) => ({ ...prev, city: cityName }));
+
+    // Optionally, set lat/lng if you have an API to fetch coordinates
+    // For now, we leave lat/lng as null or you can integrate geocoding API
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (formData.workMode === "onsite" && (!formData.country || !formData.city)) {
+      alert("Please select a valid country and city!");
+      return;
+    }
     onSubmit(formData);
   };
 
@@ -28,7 +80,6 @@ export default function OpportunityForm({ onSubmit, initialData = {} }) {
         Post a New Opportunity
       </h3>
 
-      {/* Title */}
       <input
         type="text"
         name="title"
@@ -36,31 +87,39 @@ export default function OpportunityForm({ onSubmit, initialData = {} }) {
         onChange={handleChange}
         placeholder="Opportunity Title"
         required
-        className="border border-white/20 p-3 rounded-xl bg-[#161B30] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C5A3FF] transition-all duration-200"
+        className="border border-white/20 p-3 rounded-xl bg-[#161B30] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C5A3FF]"
       />
 
-      {/* Type Dropdown */}
       <div className="relative">
         <select
           name="type"
           value={formData.type}
           onChange={handleChange}
-          className="border border-white/20 p-3 pr-10 rounded-xl bg-[#161B30] text-white appearance-none w-full focus:outline-none focus:ring-2 focus:ring-[#C5A3FF] transition-all duration-200"
+          className="border border-white/20 p-3 pr-10 rounded-xl bg-[#161B30] text-white w-full appearance-none focus:outline-none focus:ring-2 focus:ring-[#C5A3FF]"
         >
-          <option className="bg-[#161B30]" value="job">Job</option>
-          <option className="bg-[#161B30]" value="internship">Internship</option>
-          <option className="bg-[#161B30]" value="hackathon">Hackathon</option>
-          <option className="bg-[#161B30]" value="project">Project</option>
-          <option className="bg-[#161B30]" value="collaboration">Collaboration</option>
-          <option className="bg-[#161B30]" value="other">Other</option>
+          <option value="job">Job</option>
+          <option value="internship">Internship</option>
+          <option value="hackathon">Hackathon</option>
+          <option value="project">Project</option>
+          <option value="collaboration">Collaboration</option>
+          <option value="other">Education</option>
         </select>
-        <ChevronDown
-          size={18}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#C5A3FF] pointer-events-none"
-        />
+        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#C5A3FF]" size={18} />
       </div>
 
-      {/* Description */}
+      <div className="relative">
+        <select
+          name="workMode"
+          value={formData.workMode}
+          onChange={handleChange}
+          className="border border-white/20 p-3 pr-10 rounded-xl bg-[#161B30] text-white w-full appearance-none focus:outline-none focus:ring-2 focus:ring-[#C5A3FF]"
+        >
+          <option value="remote">Remote</option>
+          <option value="onsite">Onsite</option>
+        </select>
+        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#C5A3FF]" size={18} />
+      </div>
+
       <textarea
         name="description"
         value={formData.description}
@@ -68,34 +127,61 @@ export default function OpportunityForm({ onSubmit, initialData = {} }) {
         placeholder="Description"
         rows="5"
         required
-        className="border border-white/20 p-3 rounded-xl bg-[#161B30] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C5A3FF] transition-all duration-200"
+        className="border border-white/20 p-3 rounded-xl bg-[#161B30] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C5A3FF]"
       />
 
-      {/* Location */}
-      <input
-        type="text"
-        name="location"
-        value={formData.location}
-        onChange={handleChange}
-        placeholder="Location (City, Country)"
-        required
-        className="border border-white/20 p-3 rounded-xl bg-[#161B30] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C5A3FF] transition-all duration-200"
-      />
+      {formData.workMode === "onsite" && (
+        <>
+          <div className="relative">
+            <select
+              name="country"
+              value={formData.country}
+              onChange={handleChange}
+              required
+              className="border border-white/20 p-3 pr-10 rounded-xl bg-[#161B30] text-white w-full appearance-none focus:outline-none focus:ring-2 focus:ring-[#C5A3FF]"
+            >
+              <option value="">Select Country</option>
+              {countries.map((c) => (
+                <option key={c.name} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#C5A3FF]" size={18} />
+          </div>
 
-      {/* Tags */}
+          <div className="relative">
+            <select
+              name="city"
+              value={formData.city}
+              onChange={handleCityChange}
+              required
+              className="border border-white/20 p-3 pr-10 rounded-xl bg-[#161B30] text-white w-full appearance-none focus:outline-none focus:ring-2 focus:ring-[#C5A3FF]"
+            >
+              <option value="">Select City</option>
+              {cities.map((c) => (
+                <option key={c.name} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#C5A3FF]" size={18} />
+          </div>
+        </>
+      )}
+
       <input
         type="text"
         name="tags"
         value={formData.tags}
         onChange={handleChange}
         placeholder="Tags / Skills (comma separated)"
-        className="border border-white/20 p-3 rounded-xl bg-[#161B30] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C5A3FF] transition-all duration-200"
+        className="border border-white/20 p-3 rounded-xl bg-[#161B30] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C5A3FF]"
       />
 
-      {/* Submit Button */}
       <button
         type="submit"
-        className="w-full py-3 bg-gradient-to-r from-[#C5A3FF] to-[#9E7BFF] text-white rounded-xl font-semibold hover:opacity-90 transition-all duration-200"
+        className="w-full py-3 bg-gradient-to-r from-[#C5A3FF] to-[#9E7BFF] text-white rounded-xl font-semibold hover:opacity-90"
       >
         Post Opportunity
       </button>

@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Sparkles, Send, Stars } from "lucide-react";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { useNavigate } from "react-router-dom";
 
 export default function SeekerDashboard() {
   const [stats, setStats] = useState({
@@ -8,6 +12,31 @@ export default function SeekerDashboard() {
     newMatches: 0,
   });
   const [error, setError] = useState("");
+  const [opportunities, setOpportunities] = useState([]);
+  const [selectedOpp, setSelectedOpp] = useState(null);
+  const navigate = useNavigate();
+
+  // Colored icons for different opportunity types
+  const icons = {
+    job: L.divIcon({
+      className: "custom-marker",
+      html: `<i class="fa-solid fa-briefcase" style="color:#3b82f6; font-size:24px;"></i>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 24],
+    }),
+    education: L.divIcon({
+      className: "custom-marker",
+      html: `<i class="fa-solid fa-graduation-cap" style="color:#f97316; font-size:24px;"></i>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 24],
+    }),
+    hobby: L.divIcon({
+      className: "custom-marker",
+      html: `<i class="fa-solid fa-star" style="color:#22c55e; font-size:24px;"></i>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 24],
+    }),
+  };
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -16,60 +45,68 @@ export default function SeekerDashboard() {
         if (!token) throw new Error("Authentication token not found.");
 
         const [appsRes, oppsRes] = await Promise.all([
-          fetch("/api/applications/me", { headers: { Authorization: `Bearer ${token}` } }),
+          fetch("/api/applications/me", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
           fetch("/api/opportunities"),
         ]);
 
         if (appsRes.ok) {
           const applications = await appsRes.json();
-            // read any local delta caused by recent applies from Opportunities page
-            const delta = parseInt(localStorage.getItem("applicationsSentDelta") || "0", 10) || 0;
-            setStats(prevStats => ({
-              ...prevStats,
-              applicationsSent: applications.length + delta,
-            }));
-            // clear the delta after consuming it so it doesn't double count on next load
-            if (delta > 0) localStorage.removeItem("applicationsSentDelta");
+          const delta =
+            parseInt(localStorage.getItem("applicationsSentDelta") || "0", 10) ||
+            0;
+          setStats((prevStats) => ({
+            ...prevStats,
+            applicationsSent: applications.length + delta,
+          }));
+          if (delta > 0) localStorage.removeItem("applicationsSentDelta");
         }
 
-        // Try to get personalized recommendations first (if token exists).
+        if (oppsRes.ok) {
+          const opps = await oppsRes.json();
+          setOpportunities(opps);
+          setStats((prevStats) => ({
+            ...prevStats,
+            recommended: opps.length,
+            newMatches: opps.length,
+          }));
+        }
+
+        // Personalized recommendations (optional)
         const localToken = localStorage.getItem("token");
         if (localToken) {
           try {
-            const recRes = await fetch('/api/opportunities/recommend', { headers: { Authorization: `Bearer ${localToken}` } });
+            const recRes = await fetch("/api/opportunities/recommend", {
+              headers: { Authorization: `Bearer ${localToken}` },
+            });
             if (recRes.ok) {
               const recs = await recRes.json();
               const recommendedCount = Array.isArray(recs) ? recs.length : 0;
-              
-              const lastVisited = localStorage.getItem('lastVisitedSeekerDashboard');
+
+              const lastVisited =
+                localStorage.getItem("lastVisitedSeekerDashboard");
               const newMatchesCount = lastVisited
-                ? recs.filter(opp => new Date(opp.createdAt) > new Date(lastVisited)).length
+                ? recs.filter(
+                    (opp) => new Date(opp.createdAt) > new Date(lastVisited)
+                  ).length
                 : recommendedCount;
 
-              setStats(prev => ({
+              setStats((prev) => ({
                 ...prev,
                 recommended: recommendedCount,
                 newMatches: newMatchesCount,
               }));
-              
-              // we already have personal recs, no need to use the public list as primary
-              return;
+
+              return; // already have personal recs
             }
           } catch (err) {
-            console.debug('Personalized recommendations failed, falling back to public opportunities', err);
-            // fallthrough to public list
+            console.debug(
+              "Personalized recommendations failed, falling back to public opportunities",
+              err
+            );
           }
         }
-
-        if (oppsRes.ok) {
-          const opportunities = await oppsRes.json();
-          setStats(prevStats => ({
-            ...prevStats,
-            recommended: opportunities.length,
-            newMatches: opportunities.length,
-          }));
-        }
-
       } catch (err) {
         setError(err.message);
       }
@@ -78,7 +115,10 @@ export default function SeekerDashboard() {
     fetchDashboardData();
 
     return () => {
-      localStorage.setItem('lastVisitedSeekerDashboard', new Date().toISOString());
+      localStorage.setItem(
+        "lastVisitedSeekerDashboard",
+        new Date().toISOString()
+      );
     };
   }, []);
 
@@ -91,10 +131,12 @@ export default function SeekerDashboard() {
         Explore new opportunities tailored to your skills and location.
       </p>
 
-      {error && <p className="text-red-500 bg-red-500/10 p-3 rounded-lg mb-4">{error}</p>}
+      {error && (
+        <p className="text-red-500 bg-red-500/10 p-3 rounded-lg mb-4">{error}</p>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* Recommended for You */}
+        {/* Recommended */}
         <div className="bg-white/10 backdrop-blur-lg border border-white/10 p-6 rounded-2xl shadow-[0_0_25px_rgba(158,123,255,0.2)]">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-lg font-semibold text-[#C5A3FF]">
@@ -119,13 +161,48 @@ export default function SeekerDashboard() {
         {/* New Matches */}
         <div className="bg-white/10 backdrop-blur-lg border border-white/10 p-6 rounded-2xl shadow-[0_0_25px_rgba(158,123,255,0.2)]">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="text-lg font-semibold text-[#C5A3FF]">
-              New Matches
-            </h3>
+            <h3 className="text-lg font-semibold text-[#C5A3FF]">New Matches</h3>
             <Stars className="w-6 h-6 text-[#C5A3FF]" />
           </div>
           <p className="text-4xl font-bold text-white">{stats.newMatches}</p>
         </div>
+      </div>
+
+      {/* MAP SECTION */}
+      <div className="h-[450px] rounded-xl overflow-hidden relative mt-6">
+        <MapContainer
+          center={[30.3753, 69.3451]}
+          zoom={3}
+          scrollWheelZoom={true}
+          style={{ width: "100%", height: "100%" }}
+        >
+          {/* Dark Blue Basemap */}
+          <TileLayer
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+          />
+
+          {opportunities.map((opp) => (
+            <Marker
+              key={opp.id}
+              position={[opp.lat, opp.lng]}
+              icon={icons[opp.type]}
+            >
+              <Popup className="bg-[#1f254a] text-white rounded-xl p-3 shadow-lg">
+                <h3 className="font-semibold text-lg">{opp.title}</h3>
+                <p className="text-sm text-gray-300">
+                  {opp.city}, {opp.country}
+                </p>
+                <button
+                  onClick={() => navigate(`/opportunity/${opp.id}`)}
+                  className="mt-2 bg-blue-500 hover:bg-blue-600 text-white text-sm px-3 py-1 rounded"
+                >
+                  Jump In
+                </button>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
       </div>
     </div>
   );

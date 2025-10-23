@@ -38,7 +38,7 @@ export default function SeekerLayout() {
               to="/seeker/applications"
               className="text-gray-300 hover:text-[#C5A3FF] font-medium transition-all duration-200"
             >
-              My Applications
+              My Registerations
             </Link>
             <Link
               to="/seeker/profile"

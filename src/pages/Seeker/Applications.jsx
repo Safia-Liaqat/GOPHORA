@@ -53,7 +53,7 @@ export default function Applications() {
       }}
     >
       <h2 className="text-3xl font-semibold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-[#C5A3FF] to-[#9E7BFF] drop-shadow-[0_0_10px_rgba(158,123,255,0.6)]">
-        My Applications
+        My Registerations
       </h2>
 
       {error && <p className="text-red-500 bg-red-500/10 p-3 rounded-lg mb-4">{error}</p>}
@@ -75,9 +75,9 @@ export default function Applications() {
             className="border border-[#2A2F55] bg-[#161B30] text-white p-3 pr-10 rounded-xl w-full appearance-none focus:outline-none focus:ring-2 focus:ring-[#9E7BFF]"
           >
             <option className="bg-[#161B30]" value="all">All Statuses</option>
-            <option className="bg-[#161B30]" value="pending">Pending</option>
-            <option className="bg-[#161B30]" value="accepted">Accepted</option>
-            <option className="bg-[#161B30]" value="rejected">Rejected</option>
+            <option className="bg-[#161B30]" value="pending">Awaiting</option>
+            <option className="bg-[#161B30]" value="accepted">Completed</option>
+            <option className="bg-[#161B30]" value="rejected">Cancelled</option>
           </select>
           <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#C5A3FF] pointer-events-none" />
         </div>
