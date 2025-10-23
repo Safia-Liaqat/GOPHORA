@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { LogIn, Menu, X } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { href, Link, useLocation } from "react-router-dom";
 import logo from '../../assets/gophora-plomo-logo.png'
 
 const Navbar = () => {
@@ -11,6 +11,7 @@ const Navbar = () => {
   const navLinks = [
     { name: "Chat AI", href: "/chat" },
     { name: "AboutUs", href: "/about" },
+    {name: "Explore Missions", href:"/explore-missions"}
   ];
 
   // Detect scroll for navbar shadow

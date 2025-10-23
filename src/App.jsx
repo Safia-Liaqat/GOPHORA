@@ -19,6 +19,8 @@ import TestChat from './pages/Testchat'
 import PageNotFound from './pages/PageNotFound'
 import VerificationForm from './components/forms/VerificationForm'
 import AboutUs from './pages/Landing/About'
+import ExploreMissions from './pages/Landing/ExploreMissions'
+import MainLayout from './layouts/PublicLayout'
 
 
 // Other imports remain the same...
@@ -26,11 +28,14 @@ import AboutUs from './pages/Landing/About'
 function App() {
   return (
     <Routes>
-      {/* Public */}
+     <Route element={<MainLayout/>}>
+
+       {/* Public */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path='/about' element={<AboutUs/>}/>
+      <Route path="/explore-missions" element={<ExploreMissions/>} />
 
       {/* Provider Routes */}
       <Route
@@ -64,6 +69,7 @@ function App() {
       {/* Other routes */}
       <Route path="/chat" element={<TestChat />} />
       <Route path="*" element={<PageNotFound />} />
+     </Route>
     </Routes>
   );
 }
