@@ -11,7 +11,7 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   const navLinks = [
-    { name: "Chat AI", href: "/chat" },
+    { name: "Gophora AI", href: "/chat" },
     { name: "AboutUs", href: "/about" },
     { name: "Explore Missions", href: "/explore-missions" }
   ];
