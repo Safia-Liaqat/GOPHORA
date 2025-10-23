@@ -149,3 +149,23 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     opportunities: Optional[List[Opportunity]] = None
+
+class SocialProfile(BaseModel):
+    platform: str
+    url: str
+
+class VerificationRequest(BaseModel):
+    provider_type: str
+    provider_name: str
+    email: str
+    website_url: Optional[str] = None
+    domain_age: Optional[int] = None
+    social_profiles: Optional[List[SocialProfile]] = None
+    portfolio_url: Optional[str] = None
+    video_intro_url: Optional[str] = None
+    user_description: Optional[str] = None
+
+class VerificationResponse(BaseModel):
+    trust_score: int
+    reason: str
+    recommendation: str

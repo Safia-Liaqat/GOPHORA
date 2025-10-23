@@ -301,7 +301,7 @@ def get_recommendations_for_seeker(
     if query_embedding:
         try:
             # Get a larger list of candidates by semantic similarity
-            similar_opportunities = db.query(models.Opportunity).order_by(
+            similar_opportunities = db.query(models.Opportunity).join(models.Opportunity.provider).join(models.User.profile).filter(models.Profile.trust_score >= 40).order_by(
                 models.Opportunity.embedding.cosine_distance(query_embedding)
             ).limit(20).all()
         except Exception as e:
@@ -310,7 +310,7 @@ def get_recommendations_for_seeker(
     if not similar_opportunities:
         # Fallback: simple tag/skill overlap scoring
         seeker_set = set([s.lower() for s in seeker_skills])
-        candidates = db.query(models.Opportunity).all()
+        candidates = db.query(models.Opportunity).join(models.Opportunity.provider).join(models.User.profile).filter(models.Profile.trust_score >= 40).all()
         scored = []
         for opp in candidates:
             opp_tags = [t.lower() for t in (opp.tags or [])]
@@ -604,3 +604,130 @@ def handle_chat(chat_request: schemas.ChatRequest, db: Session = Depends(get_db)
     
 # Duplicate recommend endpoint removed. Kept the original `/api/opportunities/recommend`
 # defined earlier in this file (placed before the dynamic `/api/opportunities/{opportunity_id}` route)
+
+# In main.py, update your existing /api/verification/verify endpoint
+
+@app.post("/api/verification/verify", response_model=schemas.VerificationResponse)
+def verify_provider(
+    request_data: schemas.VerificationRequest,
+    current_user: models.User = Depends(auth.get_current_active_provider),
+    db: Session = Depends(get_db)
+):
+    """
+    Receives provider data, scrapes URL content, sends it to Gemini for analysis,
+    and returns a Trust Score.
+    """
+    # 1. Scrape content from URLs to get more context
+    scraped_content = ""
+    if request_data.website_url:
+        scraped_content += f"\n\n--- Scraped Content from Website ({request_data.website_url}) ---\n"
+        scraped_content += scrape_url_content(request_data.website_url)
+
+    if request_data.portfolio_url:
+        scraped_content += f"\n\n--- Scraped Content from Portfolio ({request_data.portfolio_url}) ---\n"
+        scraped_content += scrape_url_content(request_data.portfolio_url)
+
+    if request_data.social_profiles:
+        for profile in request_data.social_profiles:
+            if profile.url:
+                 scraped_content += f"\n\n--- Scraped Content from Social Profile ({profile.url}) ---\n"
+                 scraped_content += scrape_url_content(profile.url)
+
+    # 2. Prepare data and the NEW prompt for Gemini
+    provider_data_json = request_data.model_dump_json(indent=2)
+
+    prompt = f"""
+    You are an expert digital verification analyst.
+    Based on the JSON data AND the scraped web content provided below, analyze the provider's legitimacy.
+
+    **Analysis Criteria:**
+    - Critically examine the scraped content. Does it match the provider's description?
+    - For 'professional', check if the social/portfolio content is personal or a generic corporate site.
+    - If the scraped content indicates a different company name (like 'ArrowHiTech'), mention this as a major red flag in your reason.
+
+    **Provider Data (JSON):**
+    {provider_data_json}
+
+    **Scraped Web Content:**
+    {scraped_content}
+
+    **Your Task:**
+    Return a response with three fields:
+    1.  `trust_score`: An integer from 0 to 100.
+    2.  `reason`: A short, one-sentence explanation for your score, noting any mismatches found in the scraped content.
+    3.  `recommendation`: A single word: 'approve', 'review', or 'reject'.
+    """
+
+    try:
+        # 3. Call Gemini API (rest of the function is the same)
+        model = genai.GenerativeModel(GEMINI_CHAT_MODEL_NAME)
+        response = model.generate_content(prompt)
+        
+        cleaned_response_text = response.text.strip().replace("```json", "").replace("```", "")
+        ai_result = json.loads(cleaned_response_text)
+
+        trust_score = ai_result.get("trust_score", 0)
+        recommendation = ai_result.get("recommendation", "review")
+
+        profile = db.query(models.Profile).filter(models.Profile.user_id == current_user.id).first()
+        if profile:
+            profile.trust_score = trust_score
+            profile.verification_status = recommendation
+            db.commit()
+
+        return ai_result
+
+    except Exception as e:
+        print(f"Error during verification: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get a valid response from the AI verification service.")
+
+
+@app.get("/api/verification/status")
+def get_verification_status(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Checks the current verification status of the logged-in user.
+    """
+    profile = db.query(models.Profile).filter(models.Profile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found for this user.")
+
+    return {
+        "trust_score": profile.trust_score,
+        "verification_status": profile.verification_status
+    }
+
+# ... (the rest of your main.py file, like /api/auth/register)
+import requests
+from bs4 import BeautifulSoup
+
+def scrape_url_content(url: str) -> str:
+    """
+    Visits a URL, scrapes its text content, and returns a summary.
+    This acts as our 'searching engine'.
+    """
+    if not url or not url.startswith(('http://', 'https://')):
+        return "No valid URL provided."
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status() # Raise an exception for bad status codes
+
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Remove script and style elements
+        for script_or_style in soup(["script", "style"]):
+            script_or_style.decompose()
+
+        # Get text and clean it up
+        text = soup.get_text()
+        lines = (line.strip() for line in text.splitlines())
+        chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+        text = '\n'.join(chunk for chunk in chunks if chunk)
+        
+        # Return the first 500 characters for brevity
+        return text[:500] + "..." if len(text) > 500 else text
+    except requests.RequestException as e:
+        return f"Could not access URL: {e}"

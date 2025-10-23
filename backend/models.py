@@ -46,6 +46,8 @@ class Profile(Base):
     company_website = Column(Text)
     country = Column(String)
     city = Column(String)
+    trust_score = Column(Integer)
+    verification_status = Column(String)
     user = relationship("User", back_populates="profile")
 
 class Opportunity(Base):

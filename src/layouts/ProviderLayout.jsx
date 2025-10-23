@@ -23,15 +23,43 @@ export default function ProviderLayout() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
+    localStorage.removeItem("trust_score");
+    localStorage.removeItem("provider_level");
     navigate("/login");
   };
 
   // --- 🧠 Live-updating verification data ---
-  const [trustScore, setTrustScore] = useState(localStorage.getItem("trust_score"));
-  const [providerLevel, setProviderLevel] = useState(localStorage.getItem("provider_level"));
+  const [trustScore, setTrustScore] = useState(null);
+  const [providerLevel, setProviderLevel] = useState(null);
 
   useEffect(() => {
-    // Update values whenever verification is completed
+    const fetchVerificationStatus = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      try {
+        const response = await fetch("/api/verification/status", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.trust_score !== null) {
+            setTrustScore(data.trust_score);
+            setProviderLevel(data.verification_status);
+            // Also update localStorage so other components can see it
+            localStorage.setItem("trust_score", data.trust_score);
+            localStorage.setItem("provider_level", data.verification_status);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch verification status:", error);
+      }
+    };
+
+    fetchVerificationStatus();
+
+    // Update values whenever verification is completed elsewhere
     const updateStatus = () => {
       setTrustScore(localStorage.getItem("trust_score"));
       setProviderLevel(localStorage.getItem("provider_level"));
