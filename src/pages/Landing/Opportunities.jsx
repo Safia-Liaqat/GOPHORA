@@ -109,7 +109,7 @@ export default function Opportunities() {
       {/* Footer Button */}
       <div className="relative z-[2] text-center mt-12">
         <button
-          onClick={() => navigate("/opportunities/all")}
+          onClick={() => navigate("/login")}
           className="flex items-center justify-center gap-2 border border-white/20 hover:bg-white/10 text-white font-medium px-6 py-2.5 rounded-lg transition-all text-sm mx-auto"
         >
           🔍 Explore More Missions
