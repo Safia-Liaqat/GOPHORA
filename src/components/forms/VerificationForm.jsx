@@ -13,12 +13,9 @@ export default function VerificationForm() {
     email: "",
     website_url: "",
     domain_age: "",
-    social_url: "",
+    social_profiles: [{ platform: "linkedin", url: "" }],
     portfolio_url: "",
-    references: "",
     video_intro_url: "",
-    reference_name: "",
-    reference_comment: "",
     user_description: "",
   });
 
@@ -29,27 +26,93 @@ export default function VerificationForm() {
     });
   };
 
-  // Mock verification (no backend needed)
-  const handleSubmit = (e) => {
+  const handleSocialChange = (index, e) => {
+    const updatedSocials = formData.social_profiles.map((social, i) =>
+      i === index ? { ...social, [e.target.name]: e.target.value } : social
+    );
+    setFormData({ ...formData, social_profiles: updatedSocials });
+  };
+
+  const addSocialField = () => {
+    setFormData({
+      ...formData,
+      social_profiles: [
+        ...formData.social_profiles,
+        { platform: "linkedin", url: "" },
+      ],
+    });
+  };
+
+  const removeSocialField = (index) => {
+    const updatedSocials = formData.social_profiles.filter(
+      (_, i) => i !== index
+    );
+    setFormData({ ...formData, social_profiles: updatedSocials });
+  };
+
+  // In VerificationForm.jsx
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    // simulate Gemini API delay
-    setTimeout(() => {
-      const mockScore = Math.floor(Math.random() * 100);
-      const mockData = {
-        trust_score: mockScore,
-        reason:
-          mockScore >= 85
-            ? "Professional website and verified email."
-            : mockScore >= 40
-            ? "Good start, but needs more professional presence."
-            : "Insufficient verification data.",
-      };
-      setResult(mockData);
+    // 1. Get the token from localStorage
+    const token = localStorage.getItem("token");
+
+    // 2. Check if the user is logged in
+    if (!token) {
+      setError("Not authenticated. Please log in again.");
       setLoading(false);
-    }, 1200);
+      return;
+    }
+
+    const payload = {
+      provider_type: providerType,
+      provider_name: formData.provider_name,
+      email: formData.email,
+      website_url: formData.website_url,
+      // --- UPDATE THIS LINE ---
+      domain_age: formData.domain_age ? parseInt(formData.domain_age, 10) : null,
+      // --- END UPDATE ---
+      social_profiles: formData.social_profiles,
+      portfolio_url: formData.portfolio_url,
+      video_intro_url: formData.video_intro_url,
+      user_description: formData.user_description,
+    };
+
+    try {
+      const response = await fetch("/api/verification/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          // 3. Add the Authorization header
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        // Handle both 401 and other errors
+        if (response.status === 401) {
+            throw new Error("Your session has expired. Please log out and log in again.");
+        }
+        throw new Error(errData.detail || "Verification failed");
+      }
+
+      const verificationResult = await response.json();
+      setResult(verificationResult);
+
+      localStorage.setItem("trust_score", verificationResult.trust_score);
+      localStorage.setItem("provider_level", providerType);
+      window.dispatchEvent(new Event("verification-updated"));
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -219,15 +282,46 @@ export default function VerificationForm() {
               <>
                 <div>
                   <label className="block text-sm mb-2 text-gray-300">
-                    Social Profile URL (LinkedIn / Instagram / Behance)
+                    Social Profiles
                   </label>
-                  <input
-                    type="url"
-                    name="social_url"
-                    value={formData.social_url}
-                    onChange={handleChange}
-                    className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white"
-                  />
+                  {formData.social_profiles.map((social, index) => (
+                    <div key={index} className="flex items-center gap-2 mb-2">
+                      <select
+                        name="platform"
+                        value={social.platform}
+                        onChange={(e) => handleSocialChange(index, e)}
+                        className="p-3 bg-white/10 border border-white/20 rounded-lg text-white"
+                      >
+                        <option className="bg-[#2B2540]" value="linkedin">LinkedIn</option>
+                        <option className="bg-[#2B2540]" value="instagram">Instagram</option>
+                        <option className="bg-[#2B2540]" value="behance">Behance</option>
+                        <option className="bg-[#2B2540]" value="github">GitHub</option>
+                        <option className="bg-[#2B2540]" value="other">Other</option>
+                      </select>
+                      <input
+                        type="url"
+                        name="url"
+                        value={social.url}
+                        onChange={(e) => handleSocialChange(index, e)}
+                        placeholder="https://linkedin.com/in/your-profile"
+                        className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeSocialField(index)}
+                        className="p-3 bg-red-500/20 text-red-400 rounded-lg"
+                      >
+                        X
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addSocialField}
+                    className="text-[#C5A3FF] font-semibold"
+                  >
+                    + Add another profile
+                  </button>
                 </div>
                 <div>
                   <label className="block text-sm mb-2 text-gray-300">
@@ -238,19 +332,6 @@ export default function VerificationForm() {
                     name="portfolio_url"
                     value={formData.portfolio_url}
                     onChange={handleChange}
-                    className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-2 text-gray-300">
-                    References / Reviews (optional)
-                  </label>
-                  <textarea
-                    name="references"
-                    rows={2}
-                    value={formData.references}
-                    onChange={handleChange}
-                    placeholder="Add short feedback or client names"
                     className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white"
                   />
                 </div>
@@ -268,31 +349,6 @@ export default function VerificationForm() {
                     type="url"
                     name="video_intro_url"
                     value={formData.video_intro_url}
-                    onChange={handleChange}
-                    className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-2 text-gray-300">
-                    Personal Reference (optional)
-                  </label>
-                  <input
-                    type="text"
-                    name="reference_name"
-                    value={formData.reference_name}
-                    onChange={handleChange}
-                    placeholder="Name of a teacher, friend, or community member"
-                    className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-2 text-gray-300">
-                    Reference Comment
-                  </label>
-                  <textarea
-                    name="reference_comment"
-                    rows={2}
-                    value={formData.reference_comment}
                     onChange={handleChange}
                     className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white"
                   />
