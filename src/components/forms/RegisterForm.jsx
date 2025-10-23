@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-
 export default function RegisterForm({ role, setRole }) {
   const [formData, setFormData] = useState({
     name: "",
@@ -17,16 +16,18 @@ export default function RegisterForm({ role, setRole }) {
 
   const [countries, setCountries] = useState([]);
   const [cities, setCities] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [loadingCities, setLoadingCities] = useState(false);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
 
+  const navigate = useNavigate();
 
   // ✅ Fetch countries on mount
   useEffect(() => {
     const fetchCountries = async () => {
       try {
         const res = await fetch("https://countriesnow.space/api/v0.1/countries");
+        if (!res.ok) throw new Error("Failed to fetch countries.");
         const data = await res.json();
         if (data.data) {
           const countryList = data.data.map((c) => ({
@@ -37,27 +38,24 @@ export default function RegisterForm({ role, setRole }) {
         }
       } catch (err) {
         console.error("Error fetching countries:", err);
+        setError("Unable to load countries. Please refresh.");
       }
     };
-
     fetchCountries();
   }, []);
 
   // ✅ Update cities when a country is selected
   useEffect(() => {
     if (!formData.country) return;
-
     setLoadingCities(true);
     const selectedCountry = countries.find(
       (c) => c.name === formData.country
     );
-
     if (selectedCountry) {
       setCities(selectedCountry.cities.sort());
     } else {
       setCities([]);
     }
-
     setLoadingCities(false);
   }, [formData.country, countries]);
 
@@ -65,15 +63,17 @@ export default function RegisterForm({ role, setRole }) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // ✅ Safe, production-grade submission with error handling
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null); 
+    setError(null);
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
 
+    setLoading(true);
     try {
       const response = await fetch("/api/auth/register", {
         method: "POST",
@@ -82,7 +82,7 @@ export default function RegisterForm({ role, setRole }) {
           email: formData.email,
           password: formData.password,
           full_name: formData.name,
-          role: role,
+          role,
           country: formData.country,
           city: formData.city,
           skills: formData.skills,
@@ -91,16 +91,39 @@ export default function RegisterForm({ role, setRole }) {
         }),
       });
 
+      // Read the body once
+      let rawText = "";
+      try {
+        rawText = await response.text();
+      } catch {
+        rawText = "";
+      }
+
+      // Try parse JSON
+      let data = null;
+      try {
+        data = rawText ? JSON.parse(rawText) : null;
+      } catch {
+        data = null;
+      }
+
+      // Non-OK responses
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to register.");
+        const msg =
+          data?.detail ||
+          data?.message ||
+          rawText ||
+          `Error ${response.status}: Failed to register.`;
+        throw new Error(msg);
       }
 
       alert("Registration successful! Please log in.");
       navigate("/login");
-
     } catch (err) {
-      setError(err.message);
+      console.error("Registration error:", err);
+      setError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -111,6 +134,7 @@ export default function RegisterForm({ role, setRole }) {
           {error}
         </div>
       )}
+
       {/* Common Fields */}
       {["name", "email", "password", "confirmPassword"].map((field) => (
         <input
@@ -225,12 +249,19 @@ export default function RegisterForm({ role, setRole }) {
       {/* Submit Button */}
       <button
         type="submit"
-        className="w-full py-3 rounded-xl font-semibold text-white tracking-wide
+        disabled={loading}
+        className={`w-full py-3 rounded-xl font-semibold text-white tracking-wide
                    bg-gradient-to-r from-[#7F4DFF] to-[#9E7BFF]
                    hover:shadow-[0_0_30px_rgba(158,123,255,0.6)]
-                   transition-all duration-300"
+                   transition-all duration-300 ${
+                     loading ? "opacity-60 cursor-not-allowed" : ""
+                   }`}
       >
-        Register as {role === "seeker" ? "Opportunity Seeker" : "Provider"}
+        {loading
+          ? "Registering..."
+          : `Register as ${
+              role === "seeker" ? "Opportunity Seeker" : "Provider"
+            }`}
       </button>
 
       {/* Back Button */}

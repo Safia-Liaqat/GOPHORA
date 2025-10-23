@@ -18,6 +18,8 @@ import SeekerProfile from './pages/Seeker/Profile'
 import TestChat from './pages/Testchat'
 import PageNotFound from './pages/PageNotFound'
 import VerificationForm from './components/forms/VerificationForm'
+import AboutUs from './pages/Landing/About'
+
 
 // Other imports remain the same...
 
@@ -28,6 +30,7 @@ function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path='/about' element={<AboutUs/>}/>
 
       {/* Provider Routes */}
       <Route

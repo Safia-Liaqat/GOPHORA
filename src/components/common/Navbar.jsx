@@ -12,7 +12,7 @@ const Navbar = () => {
     { name: "Explore Missions", href: "/opportunities/all" },
     { name: "Chat AI", href: "/chat" },
     { name: "How It Works", href: "/gophoraflow" },
-    { name: "Contact", href: "#contact" },
+    { name: "AboutUs", href: "/about" },
   ];
 
   // Detect scroll for navbar shadow
