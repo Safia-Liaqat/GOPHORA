@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { APIURL } from '../../services/api.js'
 
 export default function Profile() {
   const [profile, setProfile] = useState({
@@ -20,10 +21,10 @@ export default function Profile() {
 
       try {
         const [userRes, profileRes] = await Promise.all([
-          fetch("/api/users/me", {
+          fetch(`${APIURL}/api/users/me`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch("/api/profiles/me", {
+          fetch(`${APIURL}/api/profiles/me`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
@@ -75,7 +76,7 @@ export default function Profile() {
     if (city) payload.city = city;
     if (country) payload.country = country;
 
-    fetch("/api/profiles/me", {
+    fetch(`${APIURL}/api/profiles/me`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -100,8 +101,7 @@ export default function Profile() {
         alert("Profile updated successfully!");
 
         // Optional: pre-warm recommendations so next view shows updated data immediately
-        fetch('/api/opportunities/recommend', { headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
-      })
+        fetch(`${APIURL}/api/opportunities/recommend`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => {});})
       .catch((err) => {
         console.error("Error updating profile:", err);
         alert("Failed to update profile. See console for details.");

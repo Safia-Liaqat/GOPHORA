@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { APIURL } from '../../services/api.js';
 
 export default function Opportunities() {
   const navigate = useNavigate();
@@ -8,17 +9,45 @@ export default function Opportunities() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Dummy fallback data
+  const dummyOpportunities = [
+    {
+      title: "Sample Mission Alpha",
+      postedBy: { name: "Admin" },
+      type: "Research",
+      description: "This is a placeholder mission. Explore and collaborate!",
+      tags: ["Science", "AI", "Innovation"],
+    },
+    {
+      title: "Sample Mission Beta",
+      postedBy: { name: "Admin" },
+      type: "Development",
+      description: "This is a placeholder mission. Explore and collaborate!",
+      tags: ["Tech", "Software", "Collaboration"],
+    },
+    {
+      title: "Sample Mission Gamma",
+      postedBy: { name: "Admin" },
+      type: "Design",
+      description: "This is a placeholder mission. Explore and collaborate!",
+      tags: ["Creativity", "UI/UX", "Projects"],
+    },
+  ];
+
   useEffect(() => {
     const fetchOpportunities = async () => {
       try {
-        const response = await fetch("/api/opportunities");
+        const response = await fetch(`${APIURL}/api/opportunities`);
         if (!response.ok) {
           throw new Error("Network response was not ok");
         }
         const data = await response.json();
-        setOpportunities(data);
+        // If no opportunities, use dummy data
+        setOpportunities(data.length ? data : dummyOpportunities);
       } catch (err) {
         setError(err.message);
+        // On error, also show dummy data
+        setOpportunities(dummyOpportunities);
       } finally {
         setLoading(false);
       }
@@ -45,7 +74,6 @@ export default function Opportunities() {
 
   return (
     <section className="relative bg-[#0A0F2C] text-white py-20 px-6 overflow-hidden">
-      {/* ... (Background and Header elements) ... */}
       <div className="relative z-[2] max-w-6xl mx-auto text-center mb-14">
         <h2 className="text-4xl font-extrabold">
           Latest <span className="text-[#A28EFF]">Opportunities</span>
@@ -55,7 +83,6 @@ export default function Opportunities() {
         </p>
       </div>
 
-      {/* Cards Grid */}
       <div className="relative z-[2] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
         {opportunities.map((opp, index) => (
           <div
@@ -64,7 +91,6 @@ export default function Opportunities() {
                        hover:scale-[1.03] hover:shadow-[0_0_20px_rgba(162,142,255,0.25)]
                        transition-all duration-300 ease-in-out flex flex-col justify-between"
           >
-            {/* --- THIS CONTENT MUST BE PRESENT --- */}
             <div>
               <div className="flex justify-between items-start mb-3">
                 <div>
@@ -91,22 +117,17 @@ export default function Opportunities() {
                 ))}
               </div>
             </div>
-            {/* --- END OF CONTENT --- */}
 
-            {/* --- BUTTON WITH ONCLICK HANDLER --- */}
             <button
               onClick={() => navigate("/login")}
               className="mt-auto bg-gradient-to-r from-[#6D5DD3] to-[#7E6DF4] hover:scale-105 hover:shadow-[0_0_20px_rgba(108,99,255,0.6)] transition-all text-white text-sm font-semibold py-2 rounded-lg w-full"
             >
               🚀 Apply to Mission
             </button>
-            {/* --- END OF BUTTON --- */}
-
           </div>
         ))}
       </div>
 
-      {/* Footer Button */}
       <div className="relative z-[2] text-center mt-12">
         <button
           onClick={() => navigate("/login")}

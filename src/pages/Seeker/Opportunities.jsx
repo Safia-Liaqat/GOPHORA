@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { APIURL } from '../../services/api.js'
 
 export default function Opportunities() {
   const [opportunities, setOpportunities] = useState([]);
@@ -20,7 +21,7 @@ export default function Opportunities() {
           return;
         }
 
-        const response = await fetch("/api/opportunities/recommend", {
+        const response = await fetch(`${APIURL}/api/opportunities/recommend`, {
           headers: {
             Authorization: `Bearer ${token}`, // Only Authorization needed
           },
@@ -87,7 +88,7 @@ export default function Opportunities() {
         return; 
       }
 
-      const res = await fetch(`/api/applications/apply?opportunity_id=${id}`, {
+      const res = await fetch(`${APIURL}/api/applications/apply?opportunity_id=${id}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

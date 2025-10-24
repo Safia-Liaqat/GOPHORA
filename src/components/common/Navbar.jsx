@@ -12,7 +12,7 @@ const Navbar = () => {
 
   const navLinks = [
     { name: "Gophora AI", href: "/chat" },
-    { name: "AboutUs", href: "/about" },
+    { name: "About Us", href: "/about" },
     { name: "Explore Missions", href: "/explore-missions" }
   ];
 

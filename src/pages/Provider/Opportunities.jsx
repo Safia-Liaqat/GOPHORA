@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import OpportunityForm from "../../components/forms/OpportunityForm";
+import { APIURL } from '../../services/api.js'
 
 export default function Opportunities() {
   const [opportunities, setOpportunities] = useState([]);
@@ -12,7 +13,7 @@ export default function Opportunities() {
   const fetchOpportunities = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("/api/opportunities/me", {
+      const response = await fetch(`${APIURL}/api/opportunities/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Failed to fetch opportunities");
@@ -33,7 +34,7 @@ export default function Opportunities() {
     if (window.confirm("Are you sure you want to delete this opportunity?")) {
       try {
         const token = localStorage.getItem("token");
-        const response = await fetch(`/api/opportunities/${id}`, {
+        const response = await fetch(`${APIURL}/api/opportunities/${id}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -54,7 +55,7 @@ export default function Opportunities() {
         tags: updatedOp.tags ? updatedOp.tags.split(",").map(tag => tag.trim()) : [],
       };
 
-      const response = await fetch(`/api/opportunities/${updatedOp.id}`, {
+      const response = await fetch(`${APIURL}/api/opportunities/${updatedOp.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

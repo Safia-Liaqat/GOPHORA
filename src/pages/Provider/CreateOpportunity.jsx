@@ -1,6 +1,8 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import OpportunityForm from "../../components/forms/OpportunityForm";
+import { APIURL } from '../../services/api.js'
+
 
 export default function CreateOpportunity() {
   const navigate = useNavigate();
@@ -16,7 +18,7 @@ export default function CreateOpportunity() {
         tags: data.tags ? data.tags.split(",").map(tag => tag.trim()) : [],
       };
 
-      const response = await fetch("/api/opportunities", {
+      const response = await fetch(`${APIURL}/api/opportunities`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

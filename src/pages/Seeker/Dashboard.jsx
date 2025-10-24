@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useNavigate } from "react-router-dom";
+import { APIURL } from '../../services/api.js'
 
 export default function SeekerDashboard() {
   const [stats, setStats] = useState({
@@ -68,7 +69,7 @@ export default function SeekerDashboard() {
         const token = localStorage.getItem("token");
         if (!token) throw new Error("Authentication token not found.");
 
-        const recRes = await fetch("/api/opportunities/recommend", {
+        const recRes = await fetch(`${APIURL}/api/opportunities/recommend`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 

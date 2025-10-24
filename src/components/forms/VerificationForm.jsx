@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { APIURL } from '../../services/api.js'
 
 export default function VerificationForm() {
   const navigate = useNavigate();
@@ -82,7 +83,7 @@ export default function VerificationForm() {
     };
 
     try {
-      const response = await fetch("/api/verification/verify", {
+      const response = await fetch(`${APIURL}/api/verification/verify`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

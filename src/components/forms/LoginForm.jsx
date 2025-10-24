@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { APIURL } from '../../services/api.js'
 
 export default function LoginForm() {
   const [role, setRole] = useState("");
@@ -21,7 +22,7 @@ export default function LoginForm() {
     // Check if there is a pending application ID
     if (pendingAppId) {
       try {
-        const res = await fetch(`/api/applications/apply?opportunity_id=${pendingAppId}`, {
+        const res = await fetch(`${APIURL}/api/applications/apply?opportunity_id=${pendingAppId}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

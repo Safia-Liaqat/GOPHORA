@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
+import { APIURL } from '../../services/api.js'
 
 export default function Profile() {
   const [profile, setProfile] = useState({
@@ -19,8 +20,8 @@ export default function Profile() {
 
       try {
         const [userRes, profileRes] = await Promise.all([
-          fetch("/api/users/me", { headers: { Authorization: `Bearer ${token}` } }),
-          fetch("/api/profiles/me", { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${APIURL}/api/users/me`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${APIURL}/api/profiles/me`, { headers: { Authorization: `Bearer ${token}` } }),
         ]);
 
         if (!userRes.ok || !profileRes.ok) throw new Error("Failed to fetch profile data");

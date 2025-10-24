@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import ChatMessage from "./ChatMessage.jsx";
 import ChatInput from "./ChatInput.jsx";
 import axios from "axios"; 
+import { APIURL } from '../../services/api.js'
 
 export default function ChatAgent() {
   const [messages, setMessages] = useState([
@@ -21,7 +22,7 @@ export default function ChatAgent() {
     setLoading(true);
 
     try {
-      const response = await axios.post("/api/chat", {
+      const response = await axios.post(`${APIURL}/api/chat`, {
         message: userMessage,
       });
 

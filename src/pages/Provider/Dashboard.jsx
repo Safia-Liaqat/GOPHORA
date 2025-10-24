@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Briefcase, Users, Activity, ShieldCheck, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { APIURL } from '../../services/api.js'
 
 export default function ProviderDashboard() {
   const navigate = useNavigate();
@@ -23,7 +24,7 @@ export default function ProviderDashboard() {
         if (!token) throw new Error("Authentication token not found.");
 
         // Fetch opportunities stats
-        const oppsRes = await fetch("/api/opportunities/me", {
+        const oppsRes = await fetch(`${APIURL}/api/opportunities/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -33,7 +34,7 @@ export default function ProviderDashboard() {
 
           for (const opportunity of opportunities) {
             const appsRes = await fetch(
-              `/api/opportunities/${opportunity.id}/applications`,
+              `${APIURL}/api/opportunities/${opportunity.id}/applications`,
               { headers: { Authorization: `Bearer ${token}` } }
             );
             if (appsRes.ok) {
@@ -50,7 +51,7 @@ export default function ProviderDashboard() {
         }
 
         // Fetch verification data (mock API for now)
-        const verifyRes = await fetch("/api/verification/status", {
+        const verifyRes = await fetch(`${APIURL}/api/verification/status`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 

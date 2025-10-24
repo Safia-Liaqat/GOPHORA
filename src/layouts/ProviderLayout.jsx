@@ -8,6 +8,9 @@ import {
   LogOut,
   ShieldCheck,
 } from "lucide-react";
+import { APIURL } from '../services/api.js'
+
+
 
 export default function ProviderLayout() {
   const location = useLocation();
@@ -38,7 +41,7 @@ export default function ProviderLayout() {
       if (!token) return;
 
       try {
-        const response = await fetch("/api/verification/status", {
+        const response = await fetch(`${APIURL}/api/verification/status`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 

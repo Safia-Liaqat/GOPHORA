@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
+import { APIURL } from '../../services/api.js'
 
 export default function Applications() {
   const [applications, setApplications] = useState([]);
@@ -13,7 +14,7 @@ export default function Applications() {
         const token = localStorage.getItem("token");
         if (!token) throw new Error("Authentication token not found.");
 
-        const response = await fetch("/api/applications/me", {
+        const response = await fetch(`${APIURL}/api/applications/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) throw new Error("Failed to fetch applications");

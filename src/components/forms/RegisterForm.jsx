@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { APIURL } from '../../services/api.js'
 
 export default function RegisterForm({ role, setRole }) {
   const [formData, setFormData] = useState({
@@ -75,7 +76,7 @@ export default function RegisterForm({ role, setRole }) {
 
     setLoading(true);
     try {
-      const response = await fetch("/api/auth/register", {
+      const response = await fetch(`${APIURL}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
