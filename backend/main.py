@@ -151,6 +151,8 @@ def get_all_opportunities(db: Session = Depends(get_db)):
 
 
 
+# In main.py
+
 @app.post("/api/auth/register", response_model=schemas.User)
 def register_user(user_data: schemas.RegisterRequest, db: Session = Depends(get_db)):
     db_user = auth.get_user(db, email=user_data.email)
@@ -158,6 +160,10 @@ def register_user(user_data: schemas.RegisterRequest, db: Session = Depends(get_
         raise HTTPException(status_code=400, detail="Email already registered")
     
     hashed_password = auth.get_password_hash(user_data.password)
+    
+    # --- START OF FIX ---
+    
+    # 1. Create the user object
     db_user = models.User(
         email=user_data.email,
         password_hash=hashed_password,
@@ -165,11 +171,18 @@ def register_user(user_data: schemas.RegisterRequest, db: Session = Depends(get_
         role=user_data.role
     )
     db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
+    
+    # 2. Commit the user to generate its ID
+    # This is necessary before creating the profile which depends on the user's ID.
+    try:
+        db.commit()
+        db.refresh(db_user)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating user: {e}")
 
+    # 3. Create the profile object with the now-valid user ID
     profile_data = {
-        "user_id": db_user.id,
         "country": user_data.country,
         "city": user_data.city,
     }
@@ -179,11 +192,23 @@ def register_user(user_data: schemas.RegisterRequest, db: Session = Depends(get_
     if user_data.role == "provider":
         profile_data["company_name"] = user_data.organizationName
         profile_data["company_website"] = user_data.website
-
-    db_profile = models.Profile(**profile_data)
+    
+    db_profile = models.Profile(user_id=db_user.id, **profile_data)
     db.add(db_profile)
-    db.commit()
-    db.refresh(db_profile)
+    
+    # 4. Commit the profile
+    try:
+        db.commit()
+        db.refresh(db_user) # Refresh to load the full user object with its profile relationship
+    except Exception as e:
+        db.rollback()
+        # Optionally, delete the user that was created in the first step to clean up
+        db.delete(db_user)
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"Error creating profile: {e}")
+        
+    # --- END OF FIX ---
+    
     return db_user
 
 @app.post("/api/auth/login", response_model=schemas.Token)

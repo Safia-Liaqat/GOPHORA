@@ -67,62 +67,48 @@ export default function RegisterForm({ role, setRole }) {
   // ✅ Safe, production-grade submission with error handling
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
+    setError(""); // Assuming you have a state like: const [error, setError] = useState("");
+    setLoading(true); // Assuming you have a state like: const [loading, setLoading] = useState(false);
 
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
+    // This payload object is the most important part.
+    // The keys (e.g., fullName, organizationName) must match exactly what your
+    // frontend form state uses, and the final keys sent in the body
+    // must match the backend's 'RegisterRequest' schema.
+    const payload = {
+      email: formData.email,
+      password: formData.password,
+      full_name: formData.fullName,
+      role: role, // 'role' is passed down as a prop
+      country: formData.country,
+      city: formData.city,
+      skills: formData.skills,
+      // This key MUST be 'organizationName' to match the backend API schema
+      organizationName: formData.organizationName,
+      website: formData.website,
+    };
 
-    setLoading(true);
     try {
-      const response = await fetch(`${APIURL}/api/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          full_name: formData.name,
-          role,
-          country: formData.country,
-          city: formData.city,
-          skills: formData.skills,
-          organizationName: formData.organizationName,
-          website: formData.website,
-        }),
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
       });
 
-      // Read the body once
-      let rawText = "";
-      try {
-        rawText = await response.text();
-      } catch {
-        rawText = "";
-      }
-
-      // Try parse JSON
-      let data = null;
-      try {
-        data = rawText ? JSON.parse(rawText) : null;
-      } catch {
-        data = null;
-      }
-
-      // Non-OK responses
       if (!response.ok) {
-        const msg =
-          data?.detail ||
-          data?.message ||
-          rawText ||
-          `Error ${response.status}: Failed to register.`;
-        throw new Error(msg);
+        // Get the specific error message from the backend's JSON response
+        const errorData = await response.json();
+        // The backend sends error details in a field named 'detail'
+        throw new Error(errorData.detail || "An unknown error occurred.");
       }
 
-      alert("Registration successful! Please log in.");
-      navigate("/login");
+      // On successful registration, you can navigate to the login page
+      navigate('/login'); // Assuming you have: const navigate = useNavigate();
+
     } catch (err) {
-      console.error("Registration error:", err);
-      setError(err.message || "Something went wrong. Please try again.");
+      // Set the error message to display it in the UI
+      setError(err.message);
     } finally {
       setLoading(false);
     }

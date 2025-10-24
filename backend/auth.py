@@ -1,4 +1,3 @@
-
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import Depends, HTTPException, status
@@ -42,7 +41,6 @@ def get_user(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    print(f"--- get_current_user called with token: {token[:10]}...") # Print start of token
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -51,31 +49,20 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
-        role: str = payload.get("role") # Make sure role is in the token payload
-        print(f"--- Token payload decoded: email={email}, role={role}") # Print decoded payload
+        role: str = payload.get("role")
         if email is None or role is None:
-             print("--- ERROR: Email or role missing from token payload")
-             raise credentials_exception
-    except JWTError as e:
-        print(f"--- ERROR: JWT decoding failed: {e}") # Print JWT errors
-        raise credentials_exception from e
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
 
     user = get_user(db, email=email)
     if user is None:
-        print(f"--- ERROR: User '{email}' not found in database") # Print DB lookup failure
         raise credentials_exception
-
-    print(f"--- User found: {user.email}, Role: {user.role}") # Confirm user found
     return user
 
-# --- Add prints inside get_current_active_seeker (if it exists or has extra logic) ---
-# This might just call get_current_user and check the role
 async def get_current_active_seeker(current_user: models.User = Depends(get_current_user)):
-    print(f"--- get_current_active_seeker checking user: {current_user.email}, Role: {current_user.role}")
     if current_user.role != "seeker":
-        print(f"--- ERROR: User is not a seeker (Role: {current_user.role})")
         raise HTTPException(status_code=403, detail="Not authorized: Requires seeker role")
-    print("--- Seeker role confirmed")
     return current_user
 
 def get_current_active_provider(current_user: models.User = Depends(get_current_user)):
