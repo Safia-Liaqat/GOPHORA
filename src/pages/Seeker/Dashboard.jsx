@@ -18,23 +18,47 @@ export default function SeekerDashboard() {
 
   // Colored icons for different opportunity types
   const icons = {
-    job: L.divIcon({
-      className: "custom-marker",
-      html: `<i class="fa-solid fa-briefcase" style="color:#3b82f6; font-size:24px;"></i>`,
-      iconSize: [24, 24],
-      iconAnchor: [12, 24],
+    job: L.icon({
+      iconUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='32' height='32'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z' fill='%233b82f6'/%3E%3C/svg%3E",
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32],
     }),
-    education: L.divIcon({
-      className: "custom-marker",
-      html: `<i class="fa-solid fa-graduation-cap" style="color:#f97316; font-size:24px;"></i>`,
-      iconSize: [24, 24],
-      iconAnchor: [12, 24],
+    hobby: L.icon({
+      iconUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='32' height='32'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z' fill='%2322c55e'/%3E%3C/svg%3E",
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32],
     }),
-    hobby: L.divIcon({
-      className: "custom-marker",
-      html: `<i class="fa-solid fa-star" style="color:#22c55e; font-size:24px;"></i>`,
-      iconSize: [24, 24],
-      iconAnchor: [12, 24],
+    education: L.icon({
+      iconUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='32' height='32'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z' fill='%23f97316'/%3E%3C/svg%3E",
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32],
+    }),
+    internship: L.icon({
+      iconUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='32' height='32'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z' fill='%2338bdf8'/%3E%3C/svg%3E",
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32],
+    }),
+    hackathon: L.icon({
+      iconUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='32' height='32'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z' fill='%23c084fc'/%3E%3C/svg%3E",
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32],
+    }),
+    project: L.icon({
+      iconUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='32' height='32'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z' fill='%232dd4bf'/%3E%3C/svg%3E",
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32],
+    }),
+    collaboration: L.icon({
+      iconUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='32' height='32'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z' fill='%23f472b6'/%3E%3C/svg%3E",
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32],
     }),
   };
 
@@ -44,68 +68,28 @@ export default function SeekerDashboard() {
         const token = localStorage.getItem("token");
         if (!token) throw new Error("Authentication token not found.");
 
-        const [appsRes, oppsRes] = await Promise.all([
-          fetch("/api/applications/me", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch("/api/opportunities"),
-        ]);
+        const recRes = await fetch("/api/opportunities/recommend", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-        if (appsRes.ok) {
-          const applications = await appsRes.json();
-          const delta =
-            parseInt(localStorage.getItem("applicationsSentDelta") || "0", 10) ||
-            0;
-          setStats((prevStats) => ({
-            ...prevStats,
-            applicationsSent: applications.length + delta,
+        if (recRes.ok) {
+          const recs = await recRes.json();
+          setOpportunities(recs);
+          const recommendedCount = Array.isArray(recs) ? recs.length : 0;
+
+          const lastVisited =
+            localStorage.getItem("lastVisitedSeekerDashboard");
+          const newMatchesCount = lastVisited
+            ? recs.filter(
+                (opp) => new Date(opp.createdAt) > new Date(lastVisited)
+              ).length
+            : recommendedCount;
+
+          setStats((prev) => ({
+            ...prev,
+            recommended: recommendedCount,
+            newMatches: newMatchesCount,
           }));
-          if (delta > 0) localStorage.removeItem("applicationsSentDelta");
-        }
-
-        if (oppsRes.ok) {
-          const opps = await oppsRes.json();
-          setOpportunities(opps);
-          setStats((prevStats) => ({
-            ...prevStats,
-            recommended: opps.length,
-            newMatches: opps.length,
-          }));
-        }
-
-        // Personalized recommendations (optional)
-        const localToken = localStorage.getItem("token");
-        if (localToken) {
-          try {
-            const recRes = await fetch("/api/opportunities/recommend", {
-              headers: { Authorization: `Bearer ${localToken}` },
-            });
-            if (recRes.ok) {
-              const recs = await recRes.json();
-              const recommendedCount = Array.isArray(recs) ? recs.length : 0;
-
-              const lastVisited =
-                localStorage.getItem("lastVisitedSeekerDashboard");
-              const newMatchesCount = lastVisited
-                ? recs.filter(
-                    (opp) => new Date(opp.createdAt) > new Date(lastVisited)
-                  ).length
-                : recommendedCount;
-
-              setStats((prev) => ({
-                ...prev,
-                recommended: recommendedCount,
-                newMatches: newMatchesCount,
-              }));
-
-              return; // already have personal recs
-            }
-          } catch (err) {
-            console.debug(
-              "Personalized recommendations failed, falling back to public opportunities",
-              err
-            );
-          }
         }
       } catch (err) {
         setError(err.message);
@@ -182,23 +166,21 @@ export default function SeekerDashboard() {
             attribution='&copy; <a href="https://carto.com/">CARTO</a>'
           />
 
-          {opportunities.map((opp) => (
+          {opportunities.filter(opp => opp.lat && opp.lng && opp.location !== 'Remote').map((opp) => (
             <Marker
               key={opp.id}
               position={[opp.lat, opp.lng]}
               icon={icons[opp.type]}
+              eventHandlers={{
+                click: () => {
+                  navigate(`/opportunity/${opp.id}`);
+                },
+              }}
+              riseOnHover
             >
-              <Popup className="bg-[#1f254a] text-white rounded-xl p-3 shadow-lg">
-                <h3 className="font-semibold text-lg">{opp.title}</h3>
-                <p className="text-sm text-gray-300">
-                  {opp.city}, {opp.country}
-                </p>
-                <button
-                  onClick={() => navigate(`/opportunity/${opp.id}`)}
-                  className="mt-2 bg-blue-500 hover:bg-blue-600 text-white text-sm px-3 py-1 rounded"
-                >
-                  Jump In
-                </button>
+              <Popup>
+                <h3>{opp.title}</h3>
+                <p>{opp.location}</p>
               </Popup>
             </Marker>
           ))}

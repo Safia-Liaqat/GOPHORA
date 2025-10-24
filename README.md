@@ -45,6 +45,46 @@ openssl rand -hex 32
 
 Copy the output of that command into your `.env` file for the `SECRET_KEY` variable.
 
+### 2. API Keys
+
+This project uses two external services that require API keys:
+
+-   **Google Gemini:** Used for all AI-powered features, including chat and verification.
+-   **Geoapify:** Used for geocoding locations to display on the map.
+
+After creating your `.env` file, you need to add the following keys:
+
+1.  **`GEMINI_API_KEY`**:
+    *   Go to [Google AI Studio](https://aistudio.google.com/).
+    *   Click on "**Get API key**" and create a new key.
+    *   Copy the key and paste it into your `.env` file:
+        ```
+        GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
+        ```
+
+2.  **`GEOAPIFY_API_KEY`**:
+    *   Create a free account on [Geoapify](https://www.geoapify.com/).
+    *   Create a new project to automatically generate an API key.
+    *   Copy the key and paste it into your `.env` file for both the backend and frontend variables:
+        ```
+        GEOAPIFY_API_KEY="YOUR_GEOAPIFY_API_KEY"
+        VITE_GEOAPIFY_API_KEY="YOUR_GEOAPIFY_API_KEY"
+        ```
+
+Your final `.env` file should look something like this:
+
+```
+SECRET_KEY=...
+POSTGRES_USER=...
+POSTGRES_PASSWORD=...
+POSTGRES_DB=...
+GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
+GEMINI_EMBED_MODEL="text-embedding-004"
+GEMINI_CHAT_MODEL="gemini-1.5-flash-latest"
+GEOAPIFY_API_KEY="YOUR_GEOAPIFY_API_KEY"
+VITE_GEOAPIFY_API_KEY="YOUR_GEOAPIFY_API_KEY"
+```
+
 ### 2. Start the Backend & Database (with Docker)
 
 The backend server and PostgreSQL database run in Docker containers managed by Docker Compose. This command reads the variables from your `.env` file.

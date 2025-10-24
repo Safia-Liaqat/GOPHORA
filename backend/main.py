@@ -4,10 +4,12 @@ from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 import json
 import os
+import re
 import google.generativeai as genai
 from pydantic import BaseModel, Field
+import requests
 
-from . import auth, models, schemas
+from . import auth, models, schemas, context
 from .database import SessionLocal, engine
 
 # ADD THIS SNIPPET
@@ -80,53 +82,61 @@ def generate_embedding(text: str) -> list[float] | None:
         print(f"Error generating embedding: {e}")
         return None
 
-
-@app.post("/api/admin/reindex-opportunities")
-def reindex_opportunities(db: Session = Depends(get_db)):
-    """Compute embeddings for all opportunities and persist them.
-
-    - Skips opportunities when embedding generation fails or returns a vector of unexpected length.
-    - Returns a summary of updated and skipped rows.
-    """
-    ops = db.query(models.Opportunity).all()
-    updated = 0
-    skipped = 0
-    for opp in ops:
-        text_to_embed = f"Title: {opp.title}\nDescription: {opp.description}\nTags: {', '.join(opp.tags or [])}"
-        emb = generate_embedding(text_to_embed)
-        if not emb:
-            print(f"reindex: skipping {opp.id} - embedding generation failed or GEMINI not configured")
-            skipped += 1
-            continue
-        try:
-            # Basic safety: ensure embedding is a list/iterable and has the expected length
-            if hasattr(emb, "__len__"):
-                emb_len = len(emb)
-                # The DB column was created as Vector(768). If the returned embedding length doesn't match,
-                # skip to avoid DB errors. Log the mismatch so you can adjust Vector size if needed.
-                if emb_len != 768:
-                    print(f"reindex: skipping {opp.id} - embedding length {emb_len} != 768")
-                    skipped += 1
-                    continue
-            opp.embedding = emb
-            db.add(opp)
-            updated += 1
-        except Exception as e:
-            print(f"reindex: error updating opp {opp.id}: {e}")
-            skipped += 1
-    db.commit()
-    return {"updated": updated, "skipped": skipped, "total": len(ops)}
-    try:
-        # The client may raise; return None on any error so recommendation flow can fallback
-        result = genai.embed_content(model=GEMINI_EMBED_MODEL_NAME, content=text)
-        # result may be a dict or object depending on library version
-        if isinstance(result, dict) and "embedding" in result:
-            return result["embedding"]
-        # Try attribute access as a fallback
-        return getattr(result, "embedding", None)
-    except Exception as e:
-        print(f"Error generating embedding: {e}")
+def geocode_location(location: str) -> dict:
+    if not location:
         return None
+    
+    api_key = os.getenv("GEOAPIFY_API_KEY")
+    if not api_key:
+        print("Warning: GEOAPIFY_API_KEY not set. Geocoding will not work.")
+        return None
+
+    try:
+        response = requests.get(f"https://api.geoapify.com/v1/geocode/search?text={location}&apiKey={api_key}")
+        response.raise_for_status()
+        data = response.json()
+        if data and data["features"]:
+            # Geoapify returns lng, lat order
+            lng, lat = data["features"][0]["geometry"]["coordinates"]
+            return {"lat": lat, "lng": lng}
+    except requests.RequestException as e:
+        print(f"Geocoding error: {e}")
+    return None
+
+
+@app.post("/api/admin/re-geocode-opportunities")
+def re_geocode_opportunities(db: Session = Depends(get_db)):
+    """
+    Finds all opportunities without lat/lng and attempts to geocode their location.
+    This is useful for fixing old data.
+    """
+    # Find opportunities where coordinates are missing but a location string exists
+    ops_to_fix = db.query(models.Opportunity).filter(
+        models.Opportunity.lat == None,
+        models.Opportunity.location != None
+    ).all()
+    
+    updated_count = 0
+    skipped_count = 0
+
+    for opp in ops_to_fix:
+        location_coords = geocode_location(opp.location)
+        if location_coords:
+            opp.lat = location_coords.get("lat")
+            opp.lng = location_coords.get("lng")
+            db.add(opp)
+            updated_count += 1
+        else:
+            skipped_count += 1
+            
+    db.commit()
+    
+    return {
+        "message": "Geocoding process completed.",
+        "updated": updated_count,
+        "skipped": skipped_count,
+        "total_processed": len(ops_to_fix)
+    }
 
 # === END: AI Configuration and Helpers ===
 
@@ -138,6 +148,7 @@ def get_all_users(db: Session = Depends(get_db)):
 @app.get("/api/debug/opportunities", response_model=List[schemas.Opportunity])
 def get_all_opportunities(db: Session = Depends(get_db)):
     return db.query(models.Opportunity).all()
+
 
 
 @app.post("/api/auth/register", response_model=schemas.User)
@@ -184,10 +195,10 @@ def login_for_access_token(form_data: schemas.LoginRequest, db: Session = Depend
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if form_data.role == "provider" and user.role != "provider":
+    if user.role != form_data.role:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"You are not authorized to log in as a {form_data.role}",
+            detail=f"You are a {user.role} and cannot log in as a {form_data.role}",
         )
     access_token = auth.create_access_token(
         data={"sub": user.email, "role": user.role}
@@ -234,6 +245,11 @@ def create_opportunity(
     text_to_embed = f"Title: {opportunity.title}\nDescription: {opportunity.description}\nTags: {', '.join(opportunity.tags)}"
     embedding_vector = generate_embedding(text_to_embed)
 
+    # Geocode the location
+    location_coords = geocode_location(opportunity.location)
+    lat = location_coords["lat"] if location_coords else None
+    lng = location_coords["lng"] if location_coords else None
+
     # Create the new database model
     # The database will set created_at and updated_at automatically
     db_opportunity = models.Opportunity(
@@ -241,6 +257,8 @@ def create_opportunity(
         description=opportunity.description,
         type=opportunity.type,
         location=opportunity.location,
+        lat=lat,
+        lng=lng,
         tags=opportunity.tags,        # <-- Pass the list of tags directly
         provider_id=current_user.id,
         embedding=embedding_vector
@@ -526,10 +544,10 @@ def handle_chat(chat_request: schemas.ChatRequest, db: Session = Depends(get_db)
             return {"reply": "I couldn't find any opportunities in our database that match your request. Please try rephrasing your search."}
 
         # 2. Filter: Use the AI to review the candidates and return ONLY IDs
-        context = ""
+        opportunity_context = ""
         for opp in similar_opportunities:
             # Provide all info for the AI to make a good decision
-            context += f"ID: {opp.id}\nTitle: {opp.title}\nDescription: {opp.description}\nTags: {', '.join(opp.tags)}\n---\n"
+            opportunity_context += f"ID: {opp.id}\nTitle: {opp.title}\nDescription: {opp.description}\nTags: {', '.join(opp.tags)}\n---\n"
 
         filter_prompt = f"""
         You are a smart career assistant. A user is looking for a job.
@@ -548,7 +566,7 @@ def handle_chat(chat_request: schemas.ChatRequest, db: Session = Depends(get_db)
         - If NO jobs are relevant, return an empty 'relevant_ids' list and a 'reply' saying you couldn't find a match.
 
         Database Context:
-        {context}
+        {opportunity_context}
         """
         
         try:
@@ -586,7 +604,7 @@ def handle_chat(chat_request: schemas.ChatRequest, db: Session = Depends(get_db)
         general_qa_prompt = f"""
         You are GOPHORA AI, a helpful assistant. Answer the user's question using ONLY the provided context.
         ---CONTEXT---
-        ... (Your context about GOPHORA) ...
+        {context.WEBSITE_CONTEXT}
         ---END CONTEXT---
         User's Question: "{user_message}"
         Answer:
@@ -637,13 +655,7 @@ def verify_provider(
     provider_data_json = request_data.model_dump_json(indent=2)
 
     prompt = f"""
-    You are an expert digital verification analyst.
-    Based on the JSON data AND the scraped web content provided below, analyze the provider's legitimacy.
-
-    **Analysis Criteria:**
-    - Critically examine the scraped content. Does it match the provider's description?
-    - For 'professional', check if the social/portfolio content is personal or a generic corporate site.
-    - If the scraped content indicates a different company name (like 'ArrowHiTech'), mention this as a major red flag in your reason.
+    You are an expert digital verification analyst. Your task is to analyze the provider's legitimacy based on the JSON data and scraped web content below.
 
     **Provider Data (JSON):**
     {provider_data_json}
@@ -651,20 +663,30 @@ def verify_provider(
     **Scraped Web Content:**
     {scraped_content}
 
-    **Your Task:**
-    Return a response with three fields:
-    1.  `trust_score`: An integer from 0 to 100.
-    2.  `reason`: A short, one-sentence explanation for your score, noting any mismatches found in the scraped content.
-    3.  `recommendation`: A single word: 'approve', 'review', or 'reject'.
+    **CRITICAL INSTRUCTION:** Your response MUST be a single, valid JSON object and NOTHING else. Do not include any text, explanations, or markdown formatting before or after the JSON object.
+
+    **JSON Object Format:**
+    {{
+      "trust_score": <integer>,
+      "reason": "<string>",
+      "recommendation": "<'approve'|'review'|'reject'>"
+    }}
     """
 
     try:
-        # 3. Call Gemini API (rest of the function is the same)
+        # 3. Call Gemini API
         model = genai.GenerativeModel(GEMINI_CHAT_MODEL_NAME)
         response = model.generate_content(prompt)
         
-        cleaned_response_text = response.text.strip().replace("```json", "").replace("```", "")
-        ai_result = json.loads(cleaned_response_text)
+        print(f"DEBUG: Gemini verification response: {response.text}")
+
+        # Use regex to find the JSON block
+        json_match = re.search(r"\{.*\}", response.text, re.DOTALL)
+        if not json_match:
+            raise ValueError("No JSON object found in the AI response.")
+            
+        json_string = json_match.group(0)
+        ai_result = json.loads(json_string)
 
         trust_score = ai_result.get("trust_score", 0)
         recommendation = ai_result.get("recommendation", "review")
@@ -679,7 +701,7 @@ def verify_provider(
 
     except Exception as e:
         print(f"Error during verification: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to get a valid response from the AI verification service.")
+        raise HTTPException(status_code=500, detail=f"Failed to get a valid response from the AI verification service: {str(e)}")
 
 
 @app.get("/api/verification/status")

@@ -12,6 +12,7 @@ export default function CreateOpportunity() {
 
       const processedData = {
         ...data,
+        location: data.workMode === 'onsite' ? `${data.city}, ${data.country}` : 'Remote',
         tags: data.tags ? data.tags.split(",").map(tag => tag.trim()) : [],
       };
 

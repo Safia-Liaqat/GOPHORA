@@ -8,7 +8,7 @@ Database Creation: Use SQLAlchemy's engine to create all tables in your local Po
 This file defines the database models for the application using SQLAlchemy's ORM.
 Each class in this file corresponds to a table in the database.
 """
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, func, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, func, Boolean, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import ARRAY
 from .database import Base
@@ -59,6 +59,8 @@ class Opportunity(Base):
     description = Column(Text, nullable=False)
     type = Column(String)
     location = Column(String)
+    lat = Column(Float)
+    lng = Column(Float)
     tags = Column(ARRAY(Text))
     status = Column(String, default="open") # CHECK (status IN ('open', 'closed', 'completed'))
     created_at = Column(DateTime(timezone=True), server_default=func.now())

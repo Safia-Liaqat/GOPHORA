@@ -50,6 +50,27 @@ export default function OpportunityForm({ onSubmit, initialData = {} }) {
     }
   }, [formData.country, countries]);
 
+  // Geocode location when city or country changes
+  useEffect(() => {
+    if (formData.city && formData.country) {
+      const location = `${formData.city}, ${formData.country}`;
+      const apiKey = import.meta.env.GEOAPIFY_API_KEY;
+      if (!apiKey) {
+        console.error("Geoapify API key not found.");
+        return;
+      }
+      fetch(`https://api.geoapify.com/v1/geocode/search?text=${location}&apiKey=${apiKey}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.features.length > 0) {
+            const { lat, lon } = data.features[0].properties;
+            setFormData(prev => ({ ...prev, lat, lng: lon }));
+          }
+        })
+        .catch(error => console.error('Error fetching geocoding data:', error));
+    }
+  }, [formData.city, formData.country]);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -57,9 +78,6 @@ export default function OpportunityForm({ onSubmit, initialData = {} }) {
   const handleCityChange = (e) => {
     const cityName = e.target.value;
     setFormData((prev) => ({ ...prev, city: cityName }));
-
-    // Optionally, set lat/lng if you have an API to fetch coordinates
-    // For now, we leave lat/lng as null or you can integrate geocoding API
   };
 
   const handleSubmit = (e) => {
@@ -102,7 +120,8 @@ export default function OpportunityForm({ onSubmit, initialData = {} }) {
           <option value="hackathon">Hackathon</option>
           <option value="project">Project</option>
           <option value="collaboration">Collaboration</option>
-          <option value="other">Education</option>
+          <option value="education">Education</option>
+          <option value="hobby">Hobby</option>
         </select>
         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#C5A3FF]" size={18} />
       </div>

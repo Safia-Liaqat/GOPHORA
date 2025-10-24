@@ -88,6 +88,8 @@ class OpportunityBase(BaseModel):
     description: str
     type: Optional[str] = None
     location: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
 
 # --- UPDATE THIS SCHEMA ---
 # This is the correct schema for creating a new opportunity.
