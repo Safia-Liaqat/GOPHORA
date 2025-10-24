@@ -152,7 +152,7 @@ export default function AboutUs() {
             {/* Founder */}
             <div className="bg-[#161B30] border border-white/10 rounded-2xl p-8 hover:shadow-[0_0_25px_rgba(158,123,255,0.3)] transition transform hover:-translate-y-2">
               <img
-                src={FounderImage}
+                src={Founderimage}
                 alt="Andrea Covarrubias"
                 className="w-32 h-32 rounded-full mx-auto mb-4 object-cover"
               />
