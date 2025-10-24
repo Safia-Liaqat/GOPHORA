@@ -140,7 +140,7 @@ export default function RegisterForm({ role, setRole }) {
         <input
           key={field}
           type={
-            field.includes("password")
+            field === "password" || field === "confirmPassword"
               ? "password"
               : field === "email"
               ? "email"
