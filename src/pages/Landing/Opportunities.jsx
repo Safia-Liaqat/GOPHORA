@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { APIURL } from '../../services/api.js';
+import { APIURL } from "../../services/api.js";
 
 export default function Opportunities() {
   const navigate = useNavigate();
@@ -42,11 +42,17 @@ export default function Opportunities() {
           throw new Error("Network response was not ok");
         }
         const data = await response.json();
-        // If no opportunities, use dummy data
-        setOpportunities(data.length ? data : dummyOpportunities);
+
+        // ✅ If backend returns no opportunities, use dummy ones
+        if (!data || data.length === 0) {
+          setOpportunities(dummyOpportunities);
+        } else {
+          setOpportunities(data);
+        }
       } catch (err) {
+        console.error("Error fetching opportunities:", err);
         setError(err.message);
-        // On error, also show dummy data
+        // ✅ On error, show dummy data instead
         setOpportunities(dummyOpportunities);
       } finally {
         setLoading(false);
@@ -64,14 +70,6 @@ export default function Opportunities() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="bg-[#0A0F2C] text-red-500 text-center py-40">
-        Error: {error}
-      </div>
-    );
-  }
-
   return (
     <section className="relative bg-[#0A0F2C] text-white py-20 px-6 overflow-hidden">
       <div className="relative z-[2] max-w-6xl mx-auto text-center mb-14">
@@ -84,48 +82,54 @@ export default function Opportunities() {
       </div>
 
       <div className="relative z-[2] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-        {opportunities.map((opp, index) => (
-          <div
-            key={index}
-            className="bg-[#161B30]/80 border border-[#1F254A] rounded-2xl p-6
-                       hover:scale-[1.03] hover:shadow-[0_0_20px_rgba(162,142,255,0.25)]
-                       transition-all duration-300 ease-in-out flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <h3 className="font-semibold text-base truncate">
-                    {opp.title}
-                  </h3>
-                  <p className="text-xs text-gray-400">{opp.postedBy?.name}</p>
-                </div>
-                <span className="text-[11px] px-2 py-0.5 rounded-full font-medium text-[#A28EFF] border border-[#A28EFF]/30 bg-[#A28EFF]/10">
-                  {opp.type}
-                </span>
-              </div>
-              <p className="text-sm text-gray-300 leading-relaxed line-clamp-3 mb-4">
-                {opp.description}
-              </p>
-              <div className="flex flex-wrap gap-2 mb-5">
-                {opp.tags && opp.tags.slice(0, 3).map((tag, i) => (
-                  <span
-                    key={i}
-                    className="bg-[#1F254A] text-[#A28EFF] text-[11px] px-2 py-0.5 rounded-md"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <button
-              onClick={() => navigate("/login")}
-              className="mt-auto bg-gradient-to-r from-[#6D5DD3] to-[#7E6DF4] hover:scale-105 hover:shadow-[0_0_20px_rgba(108,99,255,0.6)] transition-all text-white text-sm font-semibold py-2 rounded-lg w-full"
+        {/* ✅ Fallback to dummy cards if empty */}
+        {(opportunities.length ? opportunities : dummyOpportunities).map(
+          (opp, index) => (
+            <div
+              key={index}
+              className="bg-[#161B30]/80 border border-[#1F254A] rounded-2xl p-6
+                         hover:scale-[1.03] hover:shadow-[0_0_20px_rgba(162,142,255,0.25)]
+                         transition-all duration-300 ease-in-out flex flex-col justify-between"
             >
-              🚀 Apply to Mission
-            </button>
-          </div>
-        ))}
+              <div>
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-semibold text-base truncate">
+                      {opp.title}
+                    </h3>
+                    <p className="text-xs text-gray-400">
+                      {opp.postedBy?.name || "Unknown"}
+                    </p>
+                  </div>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full font-medium text-[#A28EFF] border border-[#A28EFF]/30 bg-[#A28EFF]/10">
+                    {opp.type || "General"}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-300 leading-relaxed line-clamp-3 mb-4">
+                  {opp.description || "No description available."}
+                </p>
+                <div className="flex flex-wrap gap-2 mb-5">
+                  {opp.tags &&
+                    opp.tags.slice(0, 3).map((tag, i) => (
+                      <span
+                        key={i}
+                        className="bg-[#1F254A] text-[#A28EFF] text-[11px] px-2 py-0.5 rounded-md"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                </div>
+              </div>
+
+              <button
+                onClick={() => navigate("/login")}
+                className="mt-auto bg-gradient-to-r from-[#6D5DD3] to-[#7E6DF4] hover:scale-105 hover:shadow-[0_0_20px_rgba(108,99,255,0.6)] transition-all text-white text-sm font-semibold py-2 rounded-lg w-full"
+              >
+                🚀 Apply to Mission
+              </button>
+            </div>
+          )
+        )}
       </div>
 
       <div className="relative z-[2] text-center mt-12">
