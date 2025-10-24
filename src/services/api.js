@@ -1,1 +1,1 @@
-export const APIURL = "http://16.170.218.206:8000";
+export const APIURL = "https://gophora-ax9s.onrender.com";
