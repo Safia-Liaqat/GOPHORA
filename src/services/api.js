@@ -1,1 +1,1 @@
-export const APIURL = "https://gophora-backend.fly.dev/";
+export const APIURL = "https://gophora.onrender.com";
