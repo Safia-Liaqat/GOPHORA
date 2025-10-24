@@ -10,6 +10,7 @@ import {
 import FounderImage from "../../assets/Founder.png";
 import FrontendDeveloper from "../../assets/FrontendDeveloper.png";
 import AiEngineer from "../../assets/AI Engineer.jpeg";
+import Founderimage from '../../assets/Founder-image.jpeg'
 
 export default function AboutUs() {
   return (
@@ -77,7 +78,7 @@ export default function AboutUs() {
         <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 items-center gap-12">
           <div className="flex justify-center">
             <img
-              src={FounderImage}
+              src={Founderimage}
               alt="Founder Andrea Covarrubias"
               className="rounded-2xl shadow-[0_0_40px_rgba(158,123,255,0.3)] w-80 h-80 object-cover"
             />
