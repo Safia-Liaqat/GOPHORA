@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { LogIn, Menu, X } from "lucide-react";
-import { href, Link, useLocation } from "react-router-dom";
+import { LogIn, LogOut, Menu, X } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from '../../assets/gophora-plomo-logo.png'
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const navLinks = [
-    { name: "Chat AI", href: "/chat" },
+    { name: "Gophora AI", href: "/chat" },
     { name: "AboutUs", href: "/about" },
-    {name: "Explore Missions", href:"/explore-missions"}
+    { name: "Explore Missions", href: "/explore-missions" }
   ];
 
   // Detect scroll for navbar shadow
@@ -21,6 +23,24 @@ const Navbar = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Check login status on mount
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    setIsLoggedIn(!!token);
+  }, []);
+
+  const handleAuthClick = () => {
+    if (isLoggedIn) {
+      // Logout
+      localStorage.removeItem("token");
+      setIsLoggedIn(false);
+      navigate("/"); // redirect to homepage after logout
+    } else {
+      // Navigate to login page
+      navigate("/login");
+    }
+  };
+
   return (
     <nav
       className={`fixed top-0 w-full z-50 text-white transition-all duration-300
@@ -29,10 +49,7 @@ const Navbar = () => {
     >
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-3 flex items-center justify-between">
         {/* Left: Logo */}
-        <Link
-          to="/"
-          className="flex items-center gap-2 cursor-pointer select-none ml-7"
-        >
+        <Link to="/" className="flex items-center gap-2 cursor-pointer select-none ml-7">
           <img src={logo} alt="Gophora Logo" className="h-10 w-40" />
         </Link>
 
@@ -52,13 +69,13 @@ const Navbar = () => {
             </Link>
           ))}
 
-          <Link to={'/login'}>
-          <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-md font-medium text-[13px] transition shadow-sm">
-            <LogIn size={16} />
-            <span>Login</span>
+          <button
+            onClick={handleAuthClick}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-md font-medium text-[13px] transition shadow-sm"
+          >
+            {isLoggedIn ? <LogOut size={16} /> : <LogIn size={16} />}
+            <span>{isLoggedIn ? "Logout" : "Login"}</span>
           </button>
-          </Link>
-          
         </div>
 
         {/* Mobile Toggle Button */}
@@ -72,9 +89,7 @@ const Navbar = () => {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div
-          className="md:hidden bg-[#03091d]/95 border-t border-white/10 px-6 py-4 space-y-3 animate-slideDown"
-        >
+        <div className="md:hidden bg-[#03091d]/95 border-t border-white/10 px-6 py-4 space-y-3 animate-slideDown">
           {navLinks.map((link) => (
             <Link
               key={link.name}
@@ -90,9 +105,12 @@ const Navbar = () => {
             </Link>
           ))}
 
-          <button className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-md font-medium text-sm transition shadow-sm">
-            <LogIn size={16} />
-            <span>Login</span>
+          <button
+            onClick={handleAuthClick}
+            className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-md font-medium text-sm transition shadow-sm"
+          >
+            {isLoggedIn ? <LogOut size={16} /> : <LogIn size={16} />}
+            <span>{isLoggedIn ? "Logout" : "Login"}</span>
           </button>
         </div>
       )}

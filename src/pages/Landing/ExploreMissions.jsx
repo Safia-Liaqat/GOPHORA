@@ -28,7 +28,6 @@ export default function ExploreMissions() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("Idea submitted for mission:", selectedMission.id, idea);
 
     toast.success("Idea submitted successfully 🚀", {
       style: {
@@ -47,7 +46,7 @@ export default function ExploreMissions() {
   };
 
   return (
-    <div className="p-8 text-white bg-[#0F1326] min-h-screen">
+    <div className="pt-24 p-8 text-white bg-[#0F1326] min-h-screen">
       {/* Toast provider */}
       <Toaster position="top-right" reverseOrder={false} />
 
@@ -55,7 +54,7 @@ export default function ExploreMissions() {
         Explore Missions
       </h2>
       <p className="text-gray-300 mb-8">
-        Browse example contributions and submit your own ideas to get involved.
+        Join hands in real-world missions. From food sustainability to space innovation. Your ideas can power the next breakthrough.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -64,7 +63,9 @@ export default function ExploreMissions() {
             key={mission.id}
             className="bg-[#0A0F1F] p-5 rounded-2xl shadow-lg flex flex-col justify-between border border-white/10"
           >
-            <h3 className="text-xl font-semibold mb-2 text-[#C5A3FF]">{mission.title}</h3>
+            <h3 className="text-xl font-semibold mb-2 text-[#C5A3FF]">
+              {mission.title}
+            </h3>
             <p className="text-gray-200 mb-4">{mission.example}</p>
             <button
               onClick={() => openModal(mission)}
