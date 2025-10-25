@@ -1,9 +1,37 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import { LogOut } from "lucide-react";
+import { APIURL } from "../services/api";
 
 export default function SeekerLayout() {
   const navigate = useNavigate();
+  const [applicationsSent, setApplicationsSent] = useState(0);
+  const [appliedIds, setAppliedIds] = useState([]);
+
+  useEffect(() => {
+    const fetchApplications = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) throw new Error("Authentication token not found.");
+
+        const response = await fetch(`${APIURL}/api/applications/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (response.ok) {
+          const apps = await response.json();
+          setApplicationsSent(apps.length);
+          setAppliedIds(apps.map((app) => app.opportunity_id));
+        } else {
+          throw new Error("Failed to fetch applications.");
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchApplications();
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -66,7 +94,7 @@ export default function SeekerLayout() {
 
       {/* Main Content */}
       <main className="flex-1 p-10 text-white">
-        <Outlet />
+        <Outlet context={{ applicationsSent, setApplicationsSent, appliedIds, setAppliedIds }} />
       </main>
     </div>
   );

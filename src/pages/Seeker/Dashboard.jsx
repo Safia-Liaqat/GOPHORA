@@ -3,13 +3,13 @@ import { Sparkles, Send, Stars } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { APIURL } from '../../services/api.js'
 
 export default function SeekerDashboard() {
+  const { applicationsSent, appliedIds, setAppliedIds, setApplicationsSent } = useOutletContext();
   const [stats, setStats] = useState({
     recommended: 0,
-    applicationsSent: 0,
     newMatches: 0,
   });
   const [error, setError] = useState("");
@@ -107,6 +107,31 @@ export default function SeekerDashboard() {
     };
   }, []);
 
+  const handleApply = async (id) =>
+    {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) throw new Error("Authentication token not found.");
+    
+            const response = await fetch(`${APIURL}/api/applications/apply?opportunity_id=${id}`, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+    
+            if (response.ok) {
+                alert("Application submitted successfully!");
+                setAppliedIds([...appliedIds, id]);
+                setApplicationsSent(prev => prev + 1);
+            } else {
+                throw new Error("Failed to submit application.");
+            }
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
   return (
     <div className="text-white">
       <h2 className="text-3xl font-semibold mb-3 text-transparent bg-clip-text bg-gradient-to-r from-[#C5A3FF] to-[#9E7BFF] drop-shadow-[0_0_10px_rgba(158,123,255,0.6)]">
@@ -140,7 +165,7 @@ export default function SeekerDashboard() {
             </h3>
             <Send className="w-6 h-6 text-[#C5A3FF]" />
           </div>
-          <p className="text-4xl font-bold text-white">{stats.applicationsSent}</p>
+          <p className="text-4xl font-bold text-white">{applicationsSent}</p>
         </div>
 
         {/* New Matches */}
@@ -182,6 +207,17 @@ export default function SeekerDashboard() {
               <Popup>
                 <h3>{opp.title}</h3>
                 <p>{opp.location}</p>
+                                <button
+                  onClick={() => handleApply(opp.id)}
+                  disabled={appliedIds.includes(opp.id)}
+                  className={`mt-2 py-2 px-4 rounded-xl font-semibold transition-all duration-200 ${
+                    appliedIds.includes(opp.id)
+                      ? "bg-white/20 text-gray-400 cursor-not-allowed"
+                      : "bg-gradient-to-r from-[#C5A3FF] to-[#9E7BFF] text-white hover:opacity-90"
+                  }`}
+                >
+                  {appliedIds.includes(opp.id) ? "Applied" : "Apply"}
+                </button>
               </Popup>
             </Marker>
           ))}

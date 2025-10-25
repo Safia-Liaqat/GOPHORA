@@ -1,26 +1,27 @@
-import ProtectedRoute from './components/common/ProtectedRoute'
-import './App.css'
-import './index.css'
-import Register from './pages/Auth/Register'
-import Login from './pages/Auth/Login'
-import { Route, Routes } from 'react-router-dom'
-import SeekerLayout from './layouts/SeekerLayout'
-import SeekerDashboard from './pages/Seeker/Dashboard'
-import ProviderDashboard from './pages/Provider/Dashboard'
-import ProviderLayout from './layouts/ProviderLayout'
-import LandingPage from './pages/Landing/LandingPage'
-import Opportunities from './pages/Provider/Opportunities'
-import CreateOpportunity from './pages/Provider/CreateOpportunity'
-import Profile from './pages/Provider/Profile'
-import SeekerOpportunities from './pages/Seeker/Opportunities'
-import Applications from './pages/Seeker/Applications'
-import SeekerProfile from './pages/Seeker/Profile'
-import TestChat from './pages/Testchat'
-import PageNotFound from './pages/PageNotFound'
-import VerificationForm from './components/forms/VerificationForm'
-import AboutUs from './pages/Landing/About'
-import ExploreMissions from './pages/Landing/ExploreMissions'
-import MainLayout from './layouts/PublicLayout'
+import ProtectedRoute from './components/common/ProtectedRoute';
+import './App.css';
+import './index.css';
+import Register from './pages/Auth/Register';
+import Login from './pages/Auth/Login';
+import { Route, Routes } from 'react-router-dom';
+import SeekerLayout from './layouts/SeekerLayout';
+import SeekerDashboard from './pages/Seeker/Dashboard';
+import ProviderDashboard from './pages/Provider/Dashboard';
+import ProviderLayout from './layouts/ProviderLayout';
+import LandingPage from './pages/Landing/LandingPage';
+import Opportunities from './pages/Provider/Opportunities';
+import CreateOpportunity from './pages/Provider/CreateOpportunity';
+import Profile from './pages/Provider/Profile';
+import SeekerOpportunities from './pages/Seeker/Opportunities';
+import Applications from './pages/Seeker/Applications';
+import SeekerProfile from './pages/Seeker/Profile';
+import TestChat from './pages/Testchat';
+import PageNotFound from './pages/PageNotFound';
+import VerificationForm from './components/forms/VerificationForm';
+import AboutUs from './pages/Landing/About';
+import ExploreMissions from './pages/Landing/ExploreMissions';
+import MainLayout from './layouts/PublicLayout';
+import OpportunityDetails from './pages/Seeker/OpportunityDetails';
 
 
 // Other imports remain the same...
@@ -64,6 +65,7 @@ function App() {
         <Route path="/seeker/opportunities" element={<SeekerOpportunities />} />
         <Route path="/seeker/applications" element={<Applications />} />
         <Route path="/seeker/profile" element={<SeekerProfile />} />
+        <Route path="/opportunity/:id" element={<OpportunityDetails />} />
       </Route>
 
       {/* Other routes */}
